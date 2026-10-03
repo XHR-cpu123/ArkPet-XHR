@@ -30,8 +30,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.0
-          name: 桌宠工房 1.0.0
-          body: Windows installer and portable build.
+          name: ArkPet-XHR 1.0.0
+          body: ArkPet-XHR Windows installer and portable build.
           files: |
             release/ArkPet-XHR Setup 1.0.0.exe
             release/ArkPet-XHR Portable 1.0.0.exe
