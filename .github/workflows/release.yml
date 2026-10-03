@@ -35,7 +35,16 @@ jobs:
             release/ArkPet-XHR Portable 1.0.0.exe
 
   build-macos:
-    runs-on: macos-14
+    name: build-macos-${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: macos-15-intel
+          - arch: arm64
+            runner: macos-15
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout
@@ -47,19 +56,38 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Confirm build architecture
+        run: |
+          uname -m
+          test "$(node -p "process.arch")" = "${{ matrix.arch }}"
 
-      - name: Build macOS installers for Intel and Apple silicon
-        run: npm run dist:mac:ci
+      - name: Install dependencies with optional native packages
+        run: npm ci --include=optional
 
-      - name: Upload macOS artifact
+      - name: Verify native dependencies
+        run: |
+          test -d "node_modules/@img/sharp-darwin-${{ matrix.arch }}"
+          test -d "node_modules/@img/sharp-libvips-darwin-${{ matrix.arch }}"
+
+      - name: Build macOS installer
+        run: npm run build && npx electron-builder --mac dmg --${{ matrix.arch }} --publish never
+
+      - name: Verify packaged runtime
+        env:
+          EXPECTED_MAC_ARCH: ${{ matrix.arch }}
+        run: |
+          app="$(find release -name '*.app' -type d -print -quit)"
+          test -n "$app"
+          test -d "$app/Contents/Resources/app/node_modules/@img/sharp-darwin-${{ matrix.arch }}"
+          test -d "$app/Contents/Resources/app/node_modules/@img/sharp-libvips-darwin-${{ matrix.arch }}"
+          binary="$(find "$app/Contents/MacOS" -type f -print -quit)"
+          ELECTRON_RUN_AS_NODE=1 "$binary" "$app/Contents/Resources/app/scripts/verify-sharp.cjs"
+
+      - name: Upload macOS ${{ matrix.arch }} artifact
         uses: actions/upload-artifact@v4
         with:
-          name: macos-release
-          path: |
-            release/ArkPet-XHR-macOS-1.0.0-x64.dmg
-            release/ArkPet-XHR-macOS-1.0.0-arm64.dmg
+          name: macos-${{ matrix.arch }}-release
+          path: release/ArkPet-XHR-macOS-1.0.0-${{ matrix.arch }}.dmg
 
   publish-release:
     needs:
@@ -80,4 +108,5 @@ jobs:
           tag_name: v1.0.0
           name: ArkPet-XHR 1.0.0
           body: ArkPet-XHR Windows and macOS builds.
+          overwrite_files: true
           files: release-files/*
