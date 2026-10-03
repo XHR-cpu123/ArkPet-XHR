@@ -50,14 +50,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build macOS universal installer
+      - name: Build macOS installers for Intel and Apple silicon
         run: npm run dist:mac:ci
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: macos-release
-          path: release/ArkPet-XHR-macOS-1.0.0-universal.dmg
+          path: |
+            release/ArkPet-XHR-macOS-1.0.0-x64.dmg
+            release/ArkPet-XHR-macOS-1.0.0-arm64.dmg
 
   publish-release:
     needs:
