@@ -33,5 +33,5 @@ jobs:
           name: 桌宠工房 1.0.0
           body: Windows installer and portable build.
           files: |
-            release/桌宠工房 Setup 1.0.0.exe
-            release/桌宠工房 Portable 1.0.0.exe
+            release/ArkPet-XHR Setup 1.0.0.exe
+            release/ArkPet-XHR Portable 1.0.0.exe
