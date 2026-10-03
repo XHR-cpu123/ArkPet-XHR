@@ -24,7 +24,7 @@ jobs:
         run: npm ci
 
       - name: Build installers
-        run: npm run dist
+        run: npm run dist:ci
 
       - name: Publish release
         uses: softprops/action-gh-release@v2

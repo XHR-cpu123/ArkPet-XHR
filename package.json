@@ -13,6 +13,7 @@
     "start": "electron .",
     "check": "npm run typecheck && npm run build",
     "dist": "npm run build && electron-builder",
+    "dist:ci": "npm run build && electron-builder --publish never",
     "dist:dir": "npm run build && electron-builder --dir"
   },
   "dependencies": {
@@ -69,10 +70,6 @@
       {
         "from": "user-data/assets",
         "to": "user-data-seed/assets"
-      },
-      {
-        "from": "user-data/ai-modules",
-        "to": "user-data-seed/ai-modules"
       }
     ],
     "win": {
