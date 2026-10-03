@@ -1,0 +1,73 @@
+{
+  "id": "pet_21eef929-3492-448c-96d6-bfde99f62635",
+  "name": "鸿雪-行梦侧畔",
+  "title": "Spine 3.8 角色",
+  "description": "由 .skel、.atlas 和纹理页创建的新桌宠。",
+  "accent": "#2f7df6",
+  "secondary": "#f59f38",
+  "scale": 1.2,
+  "greeting": "我在这里。",
+  "assets": [],
+  "animationMap": {
+    "idle": "",
+    "walk": "",
+    "fall": "",
+    "land": "",
+    "drag": "",
+    "sleep": ""
+  },
+  "spine": {
+    "skelUrl": "deskpet://assets/spine/build_char_4055_bgsnow_yun_7-1790602299247/build_char_4055_bgsnow_yun_7.skel",
+    "atlasUrl": "deskpet://assets/spine/build_char_4055_bgsnow_yun_7-1790602299247/build_char_4055_bgsnow_yun_7.atlas",
+    "textureUrl": "deskpet://assets/spine/build_char_4055_bgsnow_yun_7-1790602299247/build_char_4055_bgsnow_yun_7.png",
+    "folder": "build_char_4055_bgsnow_yun_7-1790602299247",
+    "animations": [
+      "Default",
+      "Interact",
+      "Move",
+      "Relax",
+      "Sit",
+      "Sleep",
+      "Special"
+    ],
+    "animationDurations": {
+      "Default": 0,
+      "Interact": 4.666666507720947,
+      "Move": 3.4666666984558105,
+      "Relax": 7.266666889190674,
+      "Sit": 3.3333332538604736,
+      "Sleep": 5.5,
+      "Special": 17.366666793823242
+    }
+  },
+  "boneMap": {
+    "root": "root",
+    "spine": "F_Waist",
+    "chest": "F_Chest",
+    "head": "F_Head_RV"
+  },
+  "actionBindings": {
+    "idle": "Special",
+    "walk": "Move",
+    "fall": "Relax",
+    "land": "Relax",
+    "drag": "Interact",
+    "sleep": "Sleep"
+  },
+  "renderConfig": {
+    "displayWidth": 260,
+    "displayHeight": 320,
+    "visualWidth": 104,
+    "visualHeight": 134,
+    "hitboxWidth": 59,
+    "hitboxHeight": 80,
+    "hitboxOffsetX": -3,
+    "hitboxOffsetY": 3,
+    "offsetX": 0,
+    "offsetY": 3
+  },
+  "createdAt": "2026-09-28T13:31:39.601Z",
+  "updatedAt": "2026-09-29T12:34:04.397Z",
+  "hunger": 100,
+  "hungerUpdatedAt": "2026-10-02T13:28:24.937Z"
+}

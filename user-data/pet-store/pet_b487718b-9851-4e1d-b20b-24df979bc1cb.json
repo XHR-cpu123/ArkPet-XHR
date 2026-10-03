@@ -1,0 +1,73 @@
+{
+  "id": "pet_b487718b-9851-4e1d-b20b-24df979bc1cb",
+  "name": "遥-常世之乐",
+  "title": "Spine 3.8 角色",
+  "description": "由 .skel、.atlas 和纹理页创建的新桌宠。",
+  "accent": "#2f7df6",
+  "secondary": "#f59f38",
+  "scale": 1.1,
+  "greeting": "我在这里。",
+  "assets": [],
+  "animationMap": {
+    "idle": "",
+    "walk": "",
+    "fall": "",
+    "land": "",
+    "drag": "",
+    "sleep": ""
+  },
+  "spine": {
+    "skelUrl": "deskpet://assets/spine/build_char_4202_haruka_iteration_6-1790601068275/build_char_4202_haruka_iteration_6.skel",
+    "atlasUrl": "deskpet://assets/spine/build_char_4202_haruka_iteration_6-1790601068275/build_char_4202_haruka_iteration_6.atlas",
+    "textureUrl": "deskpet://assets/spine/build_char_4202_haruka_iteration_6-1790601068275/build_char_4202_haruka_iteration_6.png",
+    "folder": "build_char_4202_haruka_iteration_6-1790601068275",
+    "animations": [
+      "Default",
+      "Interact",
+      "Move",
+      "Relax",
+      "Sit",
+      "Sleep",
+      "Special"
+    ],
+    "animationDurations": {
+      "Default": 0,
+      "Interact": 3,
+      "Move": 8,
+      "Relax": 8,
+      "Sit": 8,
+      "Sleep": 8,
+      "Special": 26.066667556762695
+    }
+  },
+  "boneMap": {
+    "root": "root",
+    "spine": "F_Waist_I",
+    "chest": "F_Chest_I",
+    "head": "F_Head_I"
+  },
+  "actionBindings": {
+    "idle": "Special",
+    "walk": "Move",
+    "fall": "Relax",
+    "land": "Relax",
+    "drag": "Interact",
+    "sleep": "Sleep"
+  },
+  "renderConfig": {
+    "displayWidth": 489,
+    "displayHeight": 337,
+    "visualWidth": 104,
+    "visualHeight": 134,
+    "hitboxWidth": 69,
+    "hitboxHeight": 88,
+    "hitboxOffsetX": -5,
+    "hitboxOffsetY": 4,
+    "offsetX": -9,
+    "offsetY": 4
+  },
+  "createdAt": "2026-09-28T13:11:08.633Z",
+  "updatedAt": "2026-09-30T03:38:15.642Z",
+  "hunger": 100,
+  "hungerUpdatedAt": "2026-10-02T13:28:24.937Z"
+}

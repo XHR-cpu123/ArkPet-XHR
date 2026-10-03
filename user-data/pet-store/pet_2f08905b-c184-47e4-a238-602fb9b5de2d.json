@@ -1,0 +1,70 @@
+{
+  "id": "pet_2f08905b-c184-47e4-a238-602fb9b5de2d",
+  "name": "遥",
+  "title": "Spine 3.8 角色",
+  "description": "由 .skel、.atlas 和纹理页创建的新桌宠。",
+  "accent": "#2f7df6",
+  "secondary": "#f59f38",
+  "scale": 1,
+  "greeting": "我在这里。",
+  "assets": [],
+  "animationMap": {
+    "idle": "",
+    "walk": "",
+    "fall": "",
+    "land": "",
+    "drag": "",
+    "sleep": ""
+  },
+  "spine": {
+    "skelUrl": "deskpet://assets/spine/build_char_4202_haruka-1790600844990/build_char_4202_haruka.skel",
+    "atlasUrl": "deskpet://assets/spine/build_char_4202_haruka-1790600844990/build_char_4202_haruka.atlas",
+    "textureUrl": "deskpet://assets/spine/build_char_4202_haruka-1790600844990/build_char_4202_haruka.png",
+    "folder": "build_char_4202_haruka-1790600844990",
+    "animations": [
+      "Default",
+      "Interact",
+      "Move",
+      "Relax",
+      "Sit",
+      "Sleep"
+    ],
+    "animationDurations": {
+      "Default": 0,
+      "Interact": 4.733333110809326,
+      "Move": 8,
+      "Relax": 10,
+      "Sit": 10,
+      "Sleep": 10
+    }
+  },
+  "boneMap": {
+    "root": "root",
+    "spine": "F_Waist_V",
+    "chest": "F_Chest_I",
+    "head": "F_Head_I"
+  },
+  "actionBindings": {
+    "idle": "Sit",
+    "walk": "Move",
+    "land": "Relax",
+    "drag": "Interact",
+    "sleep": "Sleep"
+  },
+  "renderConfig": {
+    "displayWidth": 260,
+    "displayHeight": 320,
+    "visualWidth": 104,
+    "visualHeight": 134,
+    "hitboxWidth": 68,
+    "hitboxHeight": 95,
+    "hitboxOffsetX": 4,
+    "hitboxOffsetY": 2,
+    "offsetX": 3,
+    "offsetY": 2
+  },
+  "createdAt": "2026-09-28T13:07:25.075Z",
+  "updatedAt": "2026-09-30T03:38:08.996Z",
+  "hunger": 100,
+  "hungerUpdatedAt": "2026-10-02T13:28:24.937Z"
+}

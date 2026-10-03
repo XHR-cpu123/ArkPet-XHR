@@ -1,0 +1,78 @@
+{
+  "id": "pet_4a522d40-21a1-4a0e-86d6-4e232a29caaa",
+  "name": "鸿雪-雪原",
+  "title": "Spine 3.8 角色",
+  "description": "由 .skel、.atlas 和纹理页创建的新桌宠。",
+  "accent": "#2f7df6",
+  "secondary": "#f59f38",
+  "scale": 1.05,
+  "greeting": "我在这里。",
+  "assets": [],
+  "animationMap": {
+    "idle": "",
+    "walk": "",
+    "fall": "",
+    "land": "",
+    "drag": "",
+    "sleep": ""
+  },
+  "spine": {
+    "skelUrl": "deskpet://assets/spine/build_char_4055_bgsnow_wild_7-1790602488328/build_char_4055_bgsnow_wild_7.skel",
+    "atlasUrl": "deskpet://assets/spine/build_char_4055_bgsnow_wild_7-1790602488328/build_char_4055_bgsnow_wild_7.atlas",
+    "textureUrl": "deskpet://assets/spine/build_char_4055_bgsnow_wild_7-1790602488328/build_char_4055_bgsnow_wild_7.png",
+    "folder": "build_char_4055_bgsnow_wild_7-1790602488328",
+    "animations": [
+      "Default",
+      "Interact",
+      "Move",
+      "Relax",
+      "Sit",
+      "Sleep",
+      "Special"
+    ],
+    "animationDurations": {
+      "Default": 0,
+      "Interact": 2.799999952316284,
+      "Move": 2.6666667461395264,
+      "Relax": 8,
+      "Sit": 4,
+      "Sleep": 3.3333332538604736,
+      "Special": 19.700000762939453
+    }
+  },
+  "boneMap": {
+    "root": "root",
+    "hip": "F_Hip",
+    "chest": "F_Chest",
+    "leftUpperLeg": "F_L_Leg",
+    "rightUpperLeg": "F_R_Leg",
+    "leftUpperArm": "F_L_Arm",
+    "leftLowerArm": "F_L_Forearm",
+    "rightUpperArm": "F_R_Arm",
+    "rightLowerArm": "F_R_Forearm"
+  },
+  "actionBindings": {
+    "idle": "Special",
+    "walk": "Move",
+    "fall": "Special",
+    "land": "Relax",
+    "drag": "Interact",
+    "sleep": "Sleep"
+  },
+  "renderConfig": {
+    "displayWidth": 260,
+    "displayHeight": 320,
+    "visualWidth": 104,
+    "visualHeight": 134,
+    "hitboxWidth": 63,
+    "hitboxHeight": 95,
+    "hitboxOffsetX": 6,
+    "hitboxOffsetY": 2,
+    "offsetX": 19,
+    "offsetY": 4
+  },
+  "createdAt": "2026-09-28T13:34:48.592Z",
+  "updatedAt": "2026-09-30T03:38:57.679Z",
+  "hunger": 100,
+  "hungerUpdatedAt": "2026-10-02T13:28:24.937Z"
+}

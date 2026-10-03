@@ -1,0 +1,78 @@
+{
+  "id": "pet_96646605-aa16-40f4-a1bb-3767755661c1",
+  "name": "夕-青玉砚",
+  "title": "Spine 3.8 角色",
+  "description": "由 .skel、.atlas 和纹理页创建的新桌宠。",
+  "accent": "#2f7df6",
+  "secondary": "#f59f38",
+  "scale": 1.15,
+  "greeting": "我在这里。",
+  "assets": [],
+  "animationMap": {
+    "idle": "",
+    "walk": "",
+    "fall": "",
+    "land": "",
+    "drag": "",
+    "sleep": ""
+  },
+  "spine": {
+    "skelUrl": "deskpet://assets/spine/build_char_2015_dusk_nian_12-1790599428324/build_char_2015_dusk_nian_12.skel",
+    "atlasUrl": "deskpet://assets/spine/build_char_2015_dusk_nian_12-1790599428324/build_char_2015_dusk_nian_12.atlas",
+    "textureUrl": "deskpet://assets/spine/build_char_2015_dusk_nian_12-1790599428324/build_char_2015_dusk_nian_12.png",
+    "folder": "build_char_2015_dusk_nian_12-1790599428324",
+    "animations": [
+      "Default",
+      "Interact",
+      "Move",
+      "Relax",
+      "Sit",
+      "Sleep",
+      "Special"
+    ],
+    "animationDurations": {
+      "Default": 0,
+      "Interact": 8.166666984558105,
+      "Move": 4,
+      "Relax": 8,
+      "Sit": 8,
+      "Sleep": 2.6666667461395264,
+      "Special": 39.33333206176758
+    }
+  },
+  "boneMap": {
+    "root": "root",
+    "chest": "F_Chest_I",
+    "head": "F_Head_I"
+  },
+  "actionBindings": {
+    "idle": "Special",
+    "walk": "Move",
+    "fall": "Special",
+    "land": "Relax",
+    "drag": "Interact",
+    "sleep": "Sleep"
+  },
+  "renderConfig": {
+    "displayWidth": 260,
+    "displayHeight": 320,
+    "visualWidth": 104,
+    "visualHeight": 134,
+    "hitboxWidth": 48,
+    "hitboxHeight": 75,
+    "hitboxOffsetX": 4,
+    "hitboxOffsetY": 7,
+    "offsetX": -12,
+    "offsetY": 14
+  },
+  "createdAt": "2026-09-28T12:43:48.646Z",
+  "updatedAt": "2026-10-02T16:18:23.749Z",
+  "modulePlugins": {
+    "boundModuleIds": [
+      "builtin-hunger-food",
+      "builtin-climb-platforms"
+    ]
+  },
+  "hunger": 70.8881,
+  "hungerUpdatedAt": "2026-10-02T16:43:18.075Z"
+}

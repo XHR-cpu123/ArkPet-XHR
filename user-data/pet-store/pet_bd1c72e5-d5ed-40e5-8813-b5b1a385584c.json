@@ -1,0 +1,80 @@
+{
+  "id": "pet_bd1c72e5-d5ed-40e5-8813-b5b1a385584c",
+  "name": "刻俄伯-夏卉",
+  "title": "Spine 3.8 角色",
+  "description": "由 .skel、.atlas 和纹理页创建的新桌宠。",
+  "accent": "#2f7df6",
+  "secondary": "#f59f38",
+  "scale": 1.15,
+  "greeting": "我在这里。",
+  "assets": [],
+  "animationMap": {
+    "idle": "",
+    "walk": "",
+    "fall": "",
+    "land": "",
+    "drag": "",
+    "sleep": ""
+  },
+  "spine": {
+    "skelUrl": "deskpet://assets/spine/build_char_2013_cerber_summer_4-1790662326924/build_char_2013_cerber_summer_4.skel",
+    "atlasUrl": "deskpet://assets/spine/build_char_2013_cerber_summer_4-1790662326924/build_char_2013_cerber_summer_4.atlas",
+    "textureUrl": "deskpet://assets/spine/build_char_2013_cerber_summer_4-1790662326924/build_char_2013_cerber_summer_4.png",
+    "folder": "build_char_2013_cerber_summer_4-1790662326924",
+    "animations": [
+      "Default",
+      "Interact",
+      "Move",
+      "Relax",
+      "Sit",
+      "Sleep",
+      "Special"
+    ],
+    "animationDurations": {
+      "Default": 0,
+      "Interact": 2,
+      "Move": 0.9333333373069763,
+      "Relax": 4,
+      "Sit": 3.3333332538604736,
+      "Sleep": 4,
+      "Special": 13.5
+    }
+  },
+  "boneMap": {
+    "root": "root",
+    "hip": "F_Hip",
+    "spine": "F_Waist",
+    "chest": "F_Chest",
+    "head": "F_Head",
+    "leftUpperLeg": "F_L_Leg",
+    "rightUpperLeg": "F_R_Leg",
+    "leftUpperArm": "IK_F_L_Arm",
+    "leftLowerArm": "F_L_Forearm",
+    "rightUpperArm": "IK_F_R_Arm",
+    "rightLowerArm": "F_R_Forearm"
+  },
+  "actionBindings": {
+    "idle": "Special",
+    "walk": "Move",
+    "fall": "Interact",
+    "land": "Relax",
+    "drag": "Interact",
+    "sleep": "Sleep"
+  },
+  "renderConfig": {
+    "displayWidth": 260,
+    "displayHeight": 320,
+    "visualWidth": 127,
+    "visualHeight": 148,
+    "hitboxWidth": 66,
+    "hitboxHeight": 78,
+    "hitboxOffsetX": 2,
+    "hitboxOffsetY": 3,
+    "offsetX": -4,
+    "offsetY": 2
+  },
+  "createdAt": "2026-09-29T06:12:07.143Z",
+  "updatedAt": "2026-09-30T03:43:05.297Z",
+  "hunger": 100,
+  "hungerUpdatedAt": "2026-10-02T13:28:24.937Z"
+}

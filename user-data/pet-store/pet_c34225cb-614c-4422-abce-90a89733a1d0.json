@@ -1,0 +1,81 @@
+{
+  "id": "pet_c34225cb-614c-4422-abce-90a89733a1d0",
+  "name": "黍",
+  "title": "Spine 3.8 角色",
+  "description": "由 .skel、.atlas 和纹理页创建的新桌宠。",
+  "accent": "#2f7df6",
+  "secondary": "#f59f38",
+  "scale": 1,
+  "greeting": "我在这里。",
+  "assets": [],
+  "animationMap": {
+    "idle": "",
+    "walk": "",
+    "fall": "",
+    "land": "",
+    "drag": "",
+    "sleep": ""
+  },
+  "spine": {
+    "skelUrl": "deskpet://assets/spine/build_char_2025_shu-1790523685696/build_char_2025_shu.skel",
+    "atlasUrl": "deskpet://assets/spine/build_char_2025_shu-1790523685696/build_char_2025_shu.atlas",
+    "textureUrl": "deskpet://assets/spine/build_char_2025_shu-1790523685696/build_char_2025_shu.png",
+    "folder": "build_char_2025_shu-1790523685696",
+    "animations": [
+      "Default",
+      "Interact",
+      "Move",
+      "Relax",
+      "Sit",
+      "Sleep"
+    ],
+    "animationDurations": {
+      "Default": 0,
+      "Interact": 5,
+      "Move": 3.3333332538604736,
+      "Relax": 10.666666984558105,
+      "Sit": 6,
+      "Sleep": 6.666666507720947
+    }
+  },
+  "createdAt": "2026-09-27T15:41:25.791Z",
+  "updatedAt": "2026-09-30T03:37:28.144Z",
+  "actionBindings": {
+    "idle": "Relax",
+    "walk": "Move",
+    "land": "Default",
+    "drag": "Interact",
+    "sleep": "Sleep"
+  },
+  "boneMap": {
+    "root": "root",
+    "hip": "F_Hip",
+    "spine": "F_Waist",
+    "chest": "F_Chest",
+    "head": "F_Head",
+    "leftUpperLeg": "F_L_Leg_1",
+    "leftLowerLeg": "F_L_Calf2",
+    "leftFoot": "F_L_Foot2",
+    "rightUpperLeg": "F_R_Leg_1",
+    "rightLowerLeg": "F_R_Calf2",
+    "rightFoot": "F_R_Foot_1",
+    "leftUpperArm": "F_L_Arm",
+    "leftLowerArm": "F_L_Forearm",
+    "rightUpperArm": "F_R_Arm",
+    "rightLowerArm": "F_R_Forearm"
+  },
+  "renderConfig": {
+    "displayWidth": 300,
+    "displayHeight": 323,
+    "visualWidth": 128,
+    "visualHeight": 144,
+    "hitboxWidth": 71,
+    "hitboxHeight": 96,
+    "hitboxOffsetX": 14,
+    "hitboxOffsetY": 4,
+    "offsetX": 0,
+    "offsetY": 2
+  },
+  "hunger": 100,
+  "hungerUpdatedAt": "2026-10-02T13:28:24.937Z"
+}

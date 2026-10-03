@@ -1,0 +1,84 @@
+{
+  "id": "pet_9ad8b702-0c7f-487e-82b8-976f530062d3",
+  "name": "黍-春日宴",
+  "title": "待替换的原创占位角色",
+  "description": "先用程序内绘制的临时小人验证重力、拖动、落点、行走和窗口交互。",
+  "accent": "#2f7df6",
+  "secondary": "#f59f38",
+  "scale": 1.1,
+  "greeting": "我在这里。今天想先做什么？",
+  "assets": [],
+  "animationMap": {
+    "idle": "",
+    "walk": "",
+    "fall": "",
+    "land": "",
+    "drag": "",
+    "sleep": ""
+  },
+  "createdAt": "2026-09-27T07:27:23.741Z",
+  "updatedAt": "2026-09-30T03:37:19.136Z",
+  "spine": {
+    "skelUrl": "deskpet://assets/spine/shu-temp-preview/build_char_2025_shu_nian_11.skel",
+    "atlasUrl": "deskpet://assets/spine/shu-temp-preview/build_char_2025_shu_nian_11.atlas",
+    "textureUrl": "deskpet://assets/spine/shu-temp-preview/build_char_2025_shu_nian_11.png",
+    "folder": "shu-temp-preview",
+    "animations": [
+      "Default",
+      "Interact",
+      "Move",
+      "Relax",
+      "Sit",
+      "Sleep",
+      "Special"
+    ],
+    "animationDurations": {
+      "Default": 0,
+      "Interact": 4.5,
+      "Move": 3.3333332538604736,
+      "Relax": 12,
+      "Sit": 6,
+      "Sleep": 6.666666507720947,
+      "Special": 16.66666603088379
+    }
+  },
+  "actionBindings": {
+    "idle": "Special",
+    "walk": "Move",
+    "fall": "Special",
+    "land": "Default",
+    "drag": "Interact",
+    "sleep": "Sleep"
+  },
+  "boneMap": {
+    "root": "root",
+    "hip": "F_Hip",
+    "spine": "F_Waist",
+    "chest": "F_Chest",
+    "head": "F_Head",
+    "leftUpperLeg": "F_L_Leg_1",
+    "leftLowerLeg": "F_L_Calf2",
+    "leftFoot": "F_L_Foot2",
+    "rightUpperLeg": "F_R_Leg_1",
+    "rightLowerLeg": "F_R_Calf2",
+    "rightFoot": "F_R_Foot_1",
+    "leftUpperArm": "F_L_Arm",
+    "leftLowerArm": "F_L_Forearm",
+    "rightUpperArm": "F_R_Arm",
+    "rightLowerArm": "F_R_Forearm"
+  },
+  "renderConfig": {
+    "displayWidth": 900,
+    "displayHeight": 760,
+    "visualWidth": 104,
+    "visualHeight": 134,
+    "hitboxWidth": 60,
+    "hitboxHeight": 99,
+    "hitboxOffsetX": 9,
+    "hitboxOffsetY": 3,
+    "offsetX": 1,
+    "offsetY": 2
+  },
+  "hunger": 100,
+  "hungerUpdatedAt": "2026-10-02T13:28:24.937Z"
+}

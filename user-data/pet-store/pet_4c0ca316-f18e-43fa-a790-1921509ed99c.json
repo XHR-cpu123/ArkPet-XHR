@@ -1,0 +1,80 @@
+{
+  "id": "pet_4c0ca316-f18e-43fa-a790-1921509ed99c",
+  "name": "纯烬艾雅法拉",
+  "title": "Spine 3.8 角色",
+  "description": "由 .skel、.atlas 和纹理页创建的新桌宠。",
+  "accent": "#2f7df6",
+  "secondary": "#f59f38",
+  "scale": 0.85,
+  "greeting": "我在这里。",
+  "assets": [],
+  "animationMap": {
+    "idle": "",
+    "walk": "",
+    "fall": "",
+    "land": "",
+    "drag": "",
+    "sleep": ""
+  },
+  "spine": {
+    "skelUrl": "deskpet://assets/spine/build_char_1016_agoat2-1790602909269/build_char_1016_agoat2.skel",
+    "atlasUrl": "deskpet://assets/spine/build_char_1016_agoat2-1790602909269/build_char_1016_agoat2.atlas",
+    "textureUrl": "deskpet://assets/spine/build_char_1016_agoat2-1790602909269/build_char_1016_agoat2.png",
+    "folder": "build_char_1016_agoat2-1790602909269",
+    "animations": [
+      "Default",
+      "Interact",
+      "Move",
+      "Relax",
+      "Sit",
+      "Sleep"
+    ],
+    "animationDurations": {
+      "Default": 0,
+      "Interact": 3,
+      "Move": 1.2000000476837158,
+      "Relax": 3.3333332538604736,
+      "Sit": 3.3333332538604736,
+      "Sleep": 2.3333332538604736
+    }
+  },
+  "boneMap": {
+    "root": "root",
+    "hip": "F_Hip",
+    "chest": "F_Chest",
+    "leftUpperLeg": "F_L_Leg",
+    "rightUpperLeg": "F_R_Leg",
+    "leftUpperArm": "F_L_Arm",
+    "leftLowerArm": "F_L_Forearm",
+    "rightUpperArm": "F_R_Arm",
+    "rightLowerArm": "F_R_Forearm"
+  },
+  "actionBindings": {
+    "idle": "Relax",
+    "walk": "Move",
+    "land": "Relax",
+    "drag": "Interact",
+    "sleep": "Sleep"
+  },
+  "renderConfig": {
+    "displayWidth": 260,
+    "displayHeight": 320,
+    "visualWidth": 104,
+    "visualHeight": 134,
+    "hitboxWidth": 81,
+    "hitboxHeight": 105,
+    "hitboxOffsetX": 9,
+    "hitboxOffsetY": 3,
+    "offsetX": 3,
+    "offsetY": 3
+  },
+  "createdAt": "2026-09-28T13:41:49.487Z",
+  "updatedAt": "2026-10-01T08:29:03.371Z",
+  "modulePlugins": {
+    "voiceProfileId": "voice_49363a3a-a8dc-4cfb-9819-1d79757930e3",
+    "aiModuleId": "training_6502ed7c-ae21-4e4e-9b28-b17eb1654643",
+    "boundModuleIds": []
+  },
+  "hunger": 100,
+  "hungerUpdatedAt": "2026-10-02T13:28:24.937Z"
+}

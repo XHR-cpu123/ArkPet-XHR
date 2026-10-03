@@ -1,0 +1,79 @@
+{
+  "id": "pet_e1aa30fc-bbb8-44f4-8894-1259c52f0b69",
+  "name": "令-濯缨",
+  "title": "Spine 3.8 角色",
+  "description": "由 .skel、.atlas 和纹理页创建的新桌宠。",
+  "accent": "#2f7df6",
+  "secondary": "#f59f38",
+  "scale": 0.9,
+  "greeting": "我在这里。",
+  "assets": [],
+  "animationMap": {
+    "idle": "",
+    "walk": "",
+    "fall": "",
+    "land": "",
+    "drag": "",
+    "sleep": ""
+  },
+  "spine": {
+    "skelUrl": "deskpet://assets/spine/build_char_2023_ling_nian_9-(1)-1790599964281/build_char_2023_ling_nian_9-(1).skel",
+    "atlasUrl": "deskpet://assets/spine/build_char_2023_ling_nian_9-(1)-1790599964281/build_char_2023_ling_nian_9-(1).atlas",
+    "textureUrl": "deskpet://assets/spine/build_char_2023_ling_nian_9-(1)-1790599964281/build_char_2023_ling_nian_9.png",
+    "folder": "build_char_2023_ling_nian_9-(1)-1790599964281",
+    "animations": [
+      "Default",
+      "Interact",
+      "Move",
+      "Relax",
+      "Sit",
+      "Sleep",
+      "Special"
+    ],
+    "animationDurations": {
+      "Default": 0,
+      "Interact": 2.6666667461395264,
+      "Move": 8,
+      "Relax": 10,
+      "Sit": 6,
+      "Sleep": 9,
+      "Special": 12.166666984558105
+    }
+  },
+  "boneMap": {
+    "root": "root",
+    "spine": "F_Waist_01",
+    "chest": "F_Chest_01",
+    "head": "F_Head_01",
+    "leftUpperLeg": "F_L_Leg_01",
+    "leftLowerLeg": "F_L_Claf_01",
+    "leftFoot": "F_L_Foot_01",
+    "rightUpperLeg": "F_R_Leg_01",
+    "rightLowerLeg": "F_R_Calf_01",
+    "rightFoot": "F_R_Foot_01"
+  },
+  "actionBindings": {
+    "idle": "Special",
+    "walk": "Move",
+    "fall": "Interact",
+    "land": "Relax",
+    "drag": "Interact",
+    "sleep": "Sleep"
+  },
+  "renderConfig": {
+    "displayWidth": 689,
+    "displayHeight": 483,
+    "visualWidth": 238,
+    "visualHeight": 134,
+    "hitboxWidth": 86,
+    "hitboxHeight": 111,
+    "hitboxOffsetX": 1,
+    "hitboxOffsetY": 8,
+    "offsetX": 59,
+    "offsetY": 11
+  },
+  "createdAt": "2026-09-28T12:52:44.599Z",
+  "updatedAt": "2026-09-30T03:37:49.119Z",
+  "hunger": 100,
+  "hungerUpdatedAt": "2026-10-02T13:28:24.937Z"
+}

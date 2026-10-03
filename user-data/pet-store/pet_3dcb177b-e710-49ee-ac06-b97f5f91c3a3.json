@@ -1,0 +1,80 @@
+{
+  "id": "pet_3dcb177b-e710-49ee-ac06-b97f5f91c3a3",
+  "name": "史尔特尔-缤纷奇境",
+  "title": "Spine 3.8 角色",
+  "description": "由 .skel、.atlas 和纹理页创建的新桌宠。",
+  "accent": "#2f7df6",
+  "secondary": "#f59f38",
+  "scale": 1.25,
+  "greeting": "我在这里。",
+  "assets": [],
+  "animationMap": {
+    "idle": "",
+    "walk": "",
+    "fall": "",
+    "land": "",
+    "drag": "",
+    "sleep": ""
+  },
+  "spine": {
+    "skelUrl": "deskpet://assets/spine/build_char_350_surtr_summer_9-1790603119198/build_char_350_surtr_summer_9.skel",
+    "atlasUrl": "deskpet://assets/spine/build_char_350_surtr_summer_9-1790603119198/build_char_350_surtr_summer_9.atlas",
+    "textureUrl": "deskpet://assets/spine/build_char_350_surtr_summer_9-1790603119198/build_char_350_surtr_summer_9.png",
+    "folder": "build_char_350_surtr_summer_9-1790603119198",
+    "animations": [
+      "Default",
+      "Interact",
+      "Move",
+      "Relax",
+      "Sit",
+      "Sleep",
+      "Special"
+    ],
+    "animationDurations": {
+      "Default": 0,
+      "Interact": 3.3333332538604736,
+      "Move": 2.6666667461395264,
+      "Relax": 3.3333332538604736,
+      "Sit": 10,
+      "Sleep": 8,
+      "Special": 17.633333206176758
+    }
+  },
+  "boneMap": {
+    "root": "root",
+    "hip": "F_Hip",
+    "spine": "F_Waist",
+    "chest": "F_Chest",
+    "head": "F_Head",
+    "leftUpperLeg": "F_L_Leg",
+    "rightUpperLeg": "F_R_Leg",
+    "leftUpperArm": "F_L_Arm",
+    "leftLowerArm": "F_L_Forearm",
+    "rightUpperArm": "F_R_Arm",
+    "rightLowerArm": "F_R_Forearm"
+  },
+  "actionBindings": {
+    "idle": "Special",
+    "walk": "Move",
+    "fall": "Special",
+    "land": "Relax",
+    "drag": "Interact",
+    "sleep": "Sleep"
+  },
+  "renderConfig": {
+    "displayWidth": 260,
+    "displayHeight": 320,
+    "visualWidth": 112,
+    "visualHeight": 144,
+    "hitboxWidth": 60,
+    "hitboxHeight": 81,
+    "hitboxOffsetX": -6,
+    "hitboxOffsetY": 2,
+    "offsetX": -5,
+    "offsetY": 2
+  },
+  "createdAt": "2026-09-28T13:45:19.466Z",
+  "updatedAt": "2026-09-30T03:39:11.644Z",
+  "hunger": 100,
+  "hungerUpdatedAt": "2026-10-02T13:28:24.937Z"
+}

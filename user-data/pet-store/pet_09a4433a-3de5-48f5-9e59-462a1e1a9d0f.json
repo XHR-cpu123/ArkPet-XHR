@@ -1,0 +1,80 @@
+{
+  "id": "pet_09a4433a-3de5-48f5-9e59-462a1e1a9d0f",
+  "name": "夕-染尘烟",
+  "title": "Spine 3.8 角色",
+  "description": "由 .skel、.atlas 和纹理页创建的新桌宠。",
+  "accent": "#2f7df6",
+  "secondary": "#f59f38",
+  "scale": 0.85,
+  "greeting": "我在这里。",
+  "assets": [],
+  "animationMap": {
+    "idle": "",
+    "walk": "",
+    "fall": "",
+    "land": "",
+    "drag": "",
+    "sleep": ""
+  },
+  "spine": {
+    "skelUrl": "deskpet://assets/spine/build_char_2015_dusk_nian_7-1790599084641/build_char_2015_dusk_nian_7.skel",
+    "atlasUrl": "deskpet://assets/spine/build_char_2015_dusk_nian_7-1790599084641/build_char_2015_dusk_nian_7.atlas",
+    "textureUrl": "deskpet://assets/spine/build_char_2015_dusk_nian_7-1790599084641/build_char_2015_dusk_nian_7.png",
+    "folder": "build_char_2015_dusk_nian_7-1790599084641",
+    "animations": [
+      "Default",
+      "Interact",
+      "Move",
+      "Relax",
+      "Sit",
+      "Sleep",
+      "Special"
+    ],
+    "animationDurations": {
+      "Default": 0,
+      "Interact": 2.3333332538604736,
+      "Move": 10.666666984558105,
+      "Relax": 13.333333015441895,
+      "Sit": 5.333333492279053,
+      "Sleep": 13.333333015441895,
+      "Special": 14.833333015441895
+    }
+  },
+  "boneMap": {
+    "root": "root",
+    "spine": "F_Waist",
+    "head": "F_Head_a",
+    "leftUpperLeg": "F_L_Leg",
+    "leftFoot": "F_L_Foot2",
+    "rightUpperLeg": "F_R_Leg",
+    "rightFoot": "F_R_Foot2",
+    "leftUpperArm": "F_L_Arm",
+    "leftLowerArm": "F_L_Forearm",
+    "rightUpperArm": "F_R_Arm",
+    "rightLowerArm": "F_R_Forearm"
+  },
+  "actionBindings": {
+    "idle": "Special",
+    "walk": "Move",
+    "fall": "Special",
+    "land": "Relax",
+    "drag": "Interact",
+    "sleep": "Sleep"
+  },
+  "renderConfig": {
+    "displayWidth": 260,
+    "displayHeight": 320,
+    "visualWidth": 104,
+    "visualHeight": 134,
+    "hitboxWidth": 76,
+    "hitboxHeight": 109,
+    "hitboxOffsetX": 8,
+    "hitboxOffsetY": 4,
+    "offsetX": -9,
+    "offsetY": 2
+  },
+  "createdAt": "2026-09-28T12:38:05.275Z",
+  "updatedAt": "2026-09-30T03:37:31.782Z",
+  "hunger": 100,
+  "hungerUpdatedAt": "2026-10-02T13:28:24.937Z"
+}
