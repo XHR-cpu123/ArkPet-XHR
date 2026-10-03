@@ -1,4 +1,4 @@
-name: Build Windows Release
+name: Build Windows and macOS Release
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
 
     steps:
@@ -23,15 +23,59 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build installers
+      - name: Build Windows installers
         run: npm run dist:ci
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: |
+            release/ArkPet-XHR Setup 1.0.0.exe
+            release/ArkPet-XHR Portable 1.0.0.exe
+
+  build-macos:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build macOS universal installer
+        run: npm run dist:mac:ci
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-release
+          path: release/ArkPet-XHR-macOS-1.0.0-universal.dmg
+
+  publish-release:
+    needs:
+      - build-windows
+      - build-macos
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-files
+          merge-multiple: true
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.0
           name: ArkPet-XHR 1.0.0
-          body: ArkPet-XHR Windows installer and portable build.
-          files: |
-            release/ArkPet-XHR Setup 1.0.0.exe
-            release/ArkPet-XHR Portable 1.0.0.exe
+          body: ArkPet-XHR Windows and macOS builds.
+          files: release-files/*
