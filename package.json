@@ -99,11 +99,11 @@
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
       "include": "build/installer.nsh",
-      "artifactName": "桌宠工房 Setup ${version}.${ext}",
+      "artifactName": "ArkPet-XHR Setup ${version}.${ext}",
       "shortcutName": "桌宠工房"
     },
     "portable": {
-      "artifactName": "桌宠工房 Portable ${version}.${ext}"
+      "artifactName": "ArkPet-XHR Portable ${version}.${ext}"
     }
   }
 }
