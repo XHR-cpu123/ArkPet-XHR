@@ -14,6 +14,7 @@
     "check": "npm run typecheck && npm run build",
     "dist": "npm run build && electron-builder",
     "dist:ci": "npm run build && electron-builder --publish never",
+    "dist:mac:ci": "npm run build && electron-builder --mac --publish never",
     "dist:dir": "npm run build && electron-builder --dir"
   },
   "dependencies": {
@@ -88,6 +89,22 @@
           ]
         }
       ]
+    },
+    "mac": {
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "minimumSystemVersion": "11.0",
+      "category": "public.app-category.entertainment",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "artifactName": "ArkPet-XHR-macOS-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
