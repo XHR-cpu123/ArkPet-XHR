@@ -1,0 +1,112 @@
+{
+  "name": "desk-companion-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A local-first Windows desktop companion studio.",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "author": "XHR-cpu23",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "start": "electron .",
+    "check": "npm run typecheck && npm run build",
+    "dist": "npm run build && electron-builder",
+    "dist:dir": "npm run build && electron-builder --dir"
+  },
+  "dependencies": {
+    "@pixi-spine/all-3.8": "^4.0.6",
+    "@pixi/unsafe-eval": "^7.4.3",
+    "lucide-react": "^0.468.0",
+    "pixi.js": "^7.4.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.1",
+    "electron-builder": "^26.0.12",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
+  },
+  "build": {
+    "appId": "com.xhrcpu23.deskpetstudio",
+    "productName": "桌宠工房",
+    "copyright": "Copyright © 2026 XHR-cpu23",
+    "asar": false,
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "scripts/**/*",
+      "package.json",
+      "!scripts/**/*.pyc",
+      "!scripts/**/__pycache__/**/*",
+      "!voice-engine/**/*",
+      "!user-data/**/*",
+      "!release/**/*",
+      "!src/**/*",
+      "!桌宠/**/*",
+      "!启动器/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "user-data/desk-pet-state.json",
+        "to": "user-data-seed/desk-pet-state.json"
+      },
+      {
+        "from": "user-data/pet-store",
+        "to": "user-data-seed/pet-store"
+      },
+      {
+        "from": "user-data/assets",
+        "to": "user-data-seed/assets"
+      },
+      {
+        "from": "user-data/ai-modules",
+        "to": "user-data-seed/ai-modules"
+      }
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh",
+      "artifactName": "桌宠工房 Setup ${version}.${ext}",
+      "shortcutName": "桌宠工房"
+    },
+    "portable": {
+      "artifactName": "桌宠工房 Portable ${version}.${ext}"
+    }
+  }
+}

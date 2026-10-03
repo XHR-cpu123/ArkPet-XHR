@@ -1,0 +1,37 @@
+name: Build Windows Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build installers
+        run: npm run dist
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          name: 桌宠工房 1.0.0
+          body: Windows installer and portable build.
+          files: |
+            release/桌宠工房 Setup 1.0.0.exe
+            release/桌宠工房 Portable 1.0.0.exe

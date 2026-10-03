@@ -1,0 +1,10 @@
+node_modules/
+dist/
+user-data/
+voice-engine/
+*.log
+__pycache__/
+*.pyc
+.DS_Store
+*.lnk
+control-capture.png
