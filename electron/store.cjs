@@ -498,6 +498,7 @@ function ensureShape(raw) {
       windowHeight: 340,
       climbChance: 55,
       climbJumpChance: 65,
+      climbApproachChance: 45,
       climbChainChance: 90,
       climbChainDecay: 0.65,
       climbHeightDecay: 0.8,
@@ -577,6 +578,10 @@ function ensureShape(raw) {
       0,
       Math.min(100, Number(module.climbJumpChance ?? 65))
     );
+    module.climbApproachChance = Math.max(
+      0,
+      Math.min(100, Number(module.climbApproachChance ?? 45))
+    );
     module.climbChainChance = Math.max(
       0,
       Math.min(100, Number(module.climbChainChance ?? 90))
@@ -612,12 +617,14 @@ function ensureShape(raw) {
     );
     module.decorationImageUrl = String(module.decorationImageUrl || "");
   }
-  const defaultDialogModuleId =
-    merged.customModules.find((item) => item.kind === "dialog-box")?.id || "";
+  const usableDialogModules = merged.customModules.filter(
+    (item) => item.kind === "dialog-box" && item.enabled !== false
+  );
+  const defaultDialogModuleId = usableDialogModules[0]?.id || "";
   merged.settings.chat = {
     dialogModuleId:
       merged.settings?.chat?.dialogModuleId &&
-      merged.customModules.some(
+      usableDialogModules.some(
         (item) => item.id === merged.settings.chat.dialogModuleId
       )
         ? merged.settings.chat.dialogModuleId
@@ -792,9 +799,20 @@ class Store {
   save() {
     fs.mkdirSync(this.userDataPath, { recursive: true });
     fs.mkdirSync(this.petStorePath, { recursive: true });
-    const tempPath = `${this.filePath}.tmp`;
-    fs.writeFileSync(tempPath, JSON.stringify(this.state, null, 2), "utf8");
-    fs.renameSync(tempPath, this.filePath);
+    const content = JSON.stringify(this.state, null, 2);
+    let shouldWrite = true;
+    try {
+      if (fs.existsSync(this.filePath)) {
+        shouldWrite = fs.readFileSync(this.filePath, "utf8") !== content;
+      }
+    } catch {
+      shouldWrite = true;
+    }
+    if (shouldWrite) {
+      const tempPath = `${this.filePath}.tmp`;
+      fs.writeFileSync(tempPath, content, "utf8");
+      fs.renameSync(tempPath, this.filePath);
+    }
     this.syncPetStore();
   }
 
@@ -803,8 +821,14 @@ class Store {
     const currentIds = new Set(this.state.pets.map((pet) => pet.id));
     for (const pet of this.state.pets) {
       const filePath = path.join(this.petStorePath, `${pet.id}.json`);
+      const content = JSON.stringify(pet, null, 2);
+      try {
+        if (fs.readFileSync(filePath, "utf8") === content) continue;
+      } catch {
+        // Missing or unreadable pet files are rewritten below.
+      }
       const tempPath = `${filePath}.tmp`;
-      fs.writeFileSync(tempPath, JSON.stringify(pet, null, 2), "utf8");
+      fs.writeFileSync(tempPath, content, "utf8");
       fs.renameSync(tempPath, filePath);
     }
     for (const entry of fs.readdirSync(this.petStorePath)) {

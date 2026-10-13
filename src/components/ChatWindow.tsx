@@ -3,6 +3,10 @@ import { useState, type CSSProperties, type FormEvent } from "react";
 import { makeId } from "../lib/id";
 import { useAppState } from "../state";
 import type { ChatMessage } from "../types";
+import {
+  listDialogModules,
+  resolveDialogModule
+} from "../lib/dialogModules";
 import { VoiceAgentPanel } from "./VoiceAgentPanel";
 
 export function ChatWindow({ mode }: { mode: "text" | "voice" }) {
@@ -13,10 +17,8 @@ export function ChatWindow({ mode }: { mode: "text" | "voice" }) {
   const [audioSrc, setAudioSrc] = useState("");
 
   if (!state) return null;
-  const dialogModule =
-    state.customModules.find(
-      (item) => item.id === state.settings.chat?.dialogModuleId
-    ) || state.customModules[0];
+  const dialogModule = resolveDialogModule(state);
+  const dialogModules = listDialogModules(state);
   const activePet =
     state.pets.find((pet) => pet.id === state.activePetId) || state.pets[0];
   const voiceProfileId = activePet?.modulePlugins?.voiceProfileId || "";
@@ -123,11 +125,14 @@ export function ChatWindow({ mode }: { mode: "text" | "voice" }) {
             })
           }
         >
-          {state.customModules.map((module) => (
+          <option value="">默认外观</option>
+          {dialogModules
+            .filter((module) => module.enabled !== false)
+            .map((module) => (
             <option value={module.id} key={module.id}>
               {module.name}
             </option>
-          ))}
+            ))}
         </select>
         <button type="button" onClick={() => window.close()}>
           <X size={17} />

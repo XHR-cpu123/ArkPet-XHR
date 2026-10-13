@@ -109,16 +109,24 @@ const chatWindows = new Map();
 const externalModuleWindows = new Map();
 const climbWindows = new Map();
 const VOICE_SERVICE_URL = "http://127.0.0.1:9880";
-const CUDA128_RUNTIME_DIR = path.join(
-  __dirname,
-  "..",
-  "voice-engine",
-  "cuda128-runtime"
-);
+
+function resolveVoiceEngineRoot() {
+  const candidates = [
+    process.env.ARKPET_VOICE_ENGINE_DIR,
+    app.isPackaged ? path.join(process.resourcesPath, "voice-engine") : "",
+    app.isPackaged ? path.join(app.getPath("userData"), "voice-engine") : "",
+    path.join(__dirname, "..", "voice-engine")
+  ].filter(Boolean);
+  return (
+    candidates.find((candidate) => fs.existsSync(candidate)) ||
+    path.join(__dirname, "..", "voice-engine")
+  );
+}
+
+const VOICE_ENGINE_ROOT = resolveVoiceEngineRoot();
+const CUDA128_RUNTIME_DIR = path.join(VOICE_ENGINE_ROOT, "cuda128-runtime");
 const VOICE_ENGINE_DIR = path.join(
-  __dirname,
-  "..",
-  "voice-engine",
+  VOICE_ENGINE_ROOT,
   "GPT-SoVITS-windows",
   "GPT-SoVITS-v3lora-20250228"
 );
@@ -126,7 +134,7 @@ const localInference = new LocalInferenceManager({
   pythonPath: path.join(VOICE_ENGINE_DIR, "runtime", "python.exe"),
   scriptPath: path.join(__dirname, "..", "scripts", "local_model_worker.py"),
   cwd: path.join(__dirname, ".."),
-  logPath: path.join(__dirname, "..", "voice-engine", "local-inference.log")
+  logPath: path.join(VOICE_ENGINE_ROOT, "local-inference.log")
 });
 const voiceAgent = new VoiceAgent({
   transcribe: (audioBytes) => transcribeAudioBytes(audioBytes),
@@ -163,14 +171,14 @@ async function ensureVoiceService() {
     const pythonPath = path.join(VOICE_ENGINE_DIR, "runtime", "python.exe");
     const apiPath = path.join(VOICE_ENGINE_DIR, "api_v2.py");
     if (!fs.existsSync(pythonPath) || !fs.existsSync(apiPath)) {
-      throw new Error("没有找到内置 GPT-SoVITS 运行环境。");
+      throw new Error(
+        `没有找到内置 GPT-SoVITS 运行环境。请把运行环境放到：${VOICE_ENGINE_ROOT}`
+      );
     }
 
-    const logPath = path.join(VOICE_ENGINE_DIR, "..", "..", "gpt-sovits-api.log");
+    const logPath = path.join(VOICE_ENGINE_ROOT, "gpt-sovits-api.log");
     const errorLogPath = path.join(
-      VOICE_ENGINE_DIR,
-      "..",
-      "..",
+      VOICE_ENGINE_ROOT,
       "gpt-sovits-api.err.log"
     );
     const stdoutFd = fs.openSync(logPath, "a");
@@ -530,17 +538,27 @@ function createAuxiliaryWindow(config) {
   return auxiliary;
 }
 
+function resolveDialogModule(state, requestedId) {
+  const usable = (item) =>
+    item.kind === "dialog-box" && item.enabled !== false;
+  return (
+    state.customModules.find(
+      (item) => item.id === requestedId && usable(item)
+    ) || state.customModules.find(usable)
+  );
+}
+
 function createChatWindow(mode, dialogModuleId) {
-  const key = `${mode}:${dialogModuleId || "default"}`;
+  const state = store.get();
+  const dialogModule = resolveDialogModule(state, dialogModuleId);
+  const resolvedModuleId = dialogModule?.id || "";
+  const key = `${mode}:${resolvedModuleId || "default"}`;
   const existing = chatWindows.get(key);
   if (existing && !existing.isDestroyed()) {
     existing.show();
     existing.focus();
     return existing;
   }
-  const dialogModule = store
-    .get()
-    .customModules.find((item) => item.id === dialogModuleId);
   const window = new BrowserWindow({
     width: Number(dialogModule?.width) || 460,
     height: Number(dialogModule?.height) || 620,
@@ -729,19 +747,17 @@ function triggerModuleAction(moduleId, petId = "default", origin = null) {
   const key = String(petId || "default");
   const windows = climbWindows.get(key) || [];
   const maxWindows = Math.max(1, Number(module.climbMaxWindows || 2));
-  while (windows.length >= maxWindows) {
-    const oldest = windows.shift();
-    if (oldest?.window && !oldest.window.isDestroyed()) {
-      oldest.window.close();
-    }
-  }
   const display = screen.getPrimaryDisplay().workArea;
   const width = Number(module.windowWidth) || 420;
-  const height = Number(module.windowHeight) || 300;
   const originX = Number(origin?.x);
   const originY = Number(origin?.y);
   const stepX = Math.max(48, Number(origin?.stepX) || 115);
   const stepY = Math.max(48, Number(origin?.stepY) || 147);
+  const configuredHeight = Number(module.windowHeight) || 300;
+  const height =
+    key === "preview"
+      ? configuredHeight
+      : Math.min(configuredHeight, Math.max(96, stepY));
   const maxRise = stepY * 2;
   const x = Number.isFinite(originX)
     ? Math.round(
@@ -764,6 +780,44 @@ function triggerModuleAction(moduleId, petId = "default", origin = null) {
         )
       )
     : Math.round(display.y + display.height * 0.35);
+  const overlappingWindow = windows.find((item) => {
+    if (!item?.window || item.window.isDestroyed()) return false;
+    const current = item.window.getBounds();
+    return (
+      current.x < x + width &&
+      current.x + current.width > x &&
+      current.y < y + height &&
+      current.y + current.height > y
+    );
+  });
+  if (overlappingWindow?.window) {
+    const current = overlappingWindow.window.getBounds();
+    overlappingWindow.window.showInactive();
+    broadcastClimbPlatform({
+      id: overlappingWindow.id,
+      petId: key,
+      closed: false,
+      x: current.x,
+      y: current.y,
+      width: current.width,
+      height: current.height
+    });
+    return {
+      id: overlappingWindow.id,
+      x: current.x,
+      y: current.y,
+      width: current.width,
+      height: current.height,
+      stepX,
+      stepY
+    };
+  }
+  while (windows.length >= maxWindows) {
+    const oldest = windows.shift();
+    if (oldest?.window && !oldest.window.isDestroyed()) {
+      oldest.window.close();
+    }
+  }
   const html = `<!doctype html><html><head><meta charset="utf-8"><style>
     html,body{margin:0;height:100%;background:${module.background || "#f7f5ef"};color:${module.textColor || "#172033"};font-family:${module.fontFamily || "Microsoft YaHei UI"};}
     main{display:grid;height:100%;place-content:center;gap:10px;padding:22px;text-align:center;}
@@ -950,19 +1004,22 @@ function inspectSafetensors(filePath) {
 }
 
 function inspectGguf(filePath) {
-  const header = Buffer.alloc(4);
+  const stat = fs.statSync(filePath);
+  const length = Math.max(0, Math.min(1024 * 1024, stat.size));
+  const preview = Buffer.alloc(length);
   const fd = fs.openSync(filePath, "r");
   try {
-    fs.readSync(fd, header, 0, 4, 0);
+    if (length > 0) {
+      fs.readSync(fd, preview, 0, length, 0);
+    }
   } finally {
     fs.closeSync(fd);
   }
-  if (header.toString("ascii") !== "GGUF") {
+  if (preview.subarray(0, 4).toString("ascii") !== "GGUF") {
     throw new Error("文件头不是 GGUF，可能不是有效的对话模型。");
   }
-  const preview = fs.readFileSync(filePath, { encoding: "latin1" }).slice(0, 1024 * 1024);
   return {
-    family: inferModelFamily(filePath, preview)
+    family: inferModelFamily(filePath, preview.toString("latin1"))
   };
 }
 
@@ -1348,12 +1405,7 @@ async function transcribeAudioBytes(audioBytes) {
 
 function getVoiceTrainingRuntime() {
   const pythonPath = path.join(CUDA128_RUNTIME_DIR, "python.exe");
-  const logPath = path.join(
-    __dirname,
-    "..",
-    "voice-engine",
-    "cuda128-setup.log"
-  );
+  const logPath = path.join(VOICE_ENGINE_ROOT, "cuda128-setup.log");
   const logText = fs.existsSync(logPath)
     ? fs.readFileSync(logPath, "utf8")
     : "";
@@ -1716,7 +1768,7 @@ function registerIpc() {
   ipcMain.on("debug:physics-log", (_event, message) => {
     if (process.env.ARKPET_PHYSICS_DEBUG !== "1") return;
     fs.appendFileSync(
-      path.join(__dirname, "..", "voice-engine", "physics-debug.log"),
+      path.join(VOICE_ENGINE_ROOT, "physics-debug.log"),
       `${message}\n`,
       "utf8"
     );
@@ -1763,11 +1815,11 @@ function registerIpc() {
   });
   ipcMain.handle("chat:open", (_event, mode, dialogModuleId) => {
     const state = store.get();
-    const nextModuleId =
-      dialogModuleId ||
-      state.settings.chat?.dialogModuleId ||
-      state.customModules.find((item) => item.kind === "dialog-box")?.id ||
-      "";
+    const dialogModule = resolveDialogModule(
+      state,
+      dialogModuleId || state.settings.chat?.dialogModuleId || ""
+    );
+    const nextModuleId = dialogModule?.id || "";
     if (nextModuleId !== state.settings.chat?.dialogModuleId) {
       store.update({
         settings: {
@@ -2316,7 +2368,25 @@ function registerIpc() {
     const desktopRoot = path.resolve(app.getPath("desktop"));
     const relation = path.relative(desktopRoot, target);
     const allowOutsideDesktop = options?.allowOutsideDesktop === true;
+    const blockedRoots = [
+      process.env.WINDIR,
+      process.env.ProgramFiles,
+      process.env["ProgramFiles(x86)"],
+      process.resourcesPath,
+      app.getAppPath()
+    ]
+      .filter(Boolean)
+      .map((item) => path.resolve(String(item)));
+    const insideBlockedRoot = blockedRoots.some((blockedRoot) => {
+      const blockedRelation = path.relative(blockedRoot, target);
+      return (
+        blockedRelation === "" ||
+        (!blockedRelation.startsWith("..") &&
+          !path.isAbsolute(blockedRelation))
+      );
+    });
     if (
+      insideBlockedRoot ||
       (!allowOutsideDesktop &&
         (relation.startsWith("..") || path.isAbsolute(relation))) ||
       path.extname(target).toLowerCase() !== ".food"
@@ -2699,11 +2769,35 @@ function registerIpc() {
       filters: [{ name: "桌宠备份", extensions: ["json"] }]
     });
     if (result.canceled) return { canceled: true };
-    const parsed = JSON.parse(fs.readFileSync(result.filePaths[0], "utf8"));
-    const state = store.replace(parsed);
-    broadcastState();
-    applyOverlaySettings();
-    return { canceled: false, state };
+    try {
+      const backupFile = result.filePaths[0];
+      const parsed = JSON.parse(fs.readFileSync(backupFile, "utf8"));
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return {
+          canceled: false,
+          ok: false,
+          error: "备份文件内容不是有效的桌宠数据。"
+        };
+      }
+      const backupAssets = path.join(path.dirname(backupFile), "assets");
+      if (fs.existsSync(backupAssets)) {
+        fs.mkdirSync(store.assetsPath, { recursive: true });
+        fs.cpSync(backupAssets, store.assetsPath, {
+          recursive: true,
+          force: true
+        });
+      }
+      const state = store.replace(parsed);
+      broadcastState();
+      applyOverlaySettings();
+      return { canceled: false, ok: true, state };
+    } catch (error) {
+      return {
+        canceled: false,
+        ok: false,
+        error: error?.message || "导入备份失败。"
+      };
+    }
   });
   ipcMain.handle("app:quit", () => {
     isQuitting = true;

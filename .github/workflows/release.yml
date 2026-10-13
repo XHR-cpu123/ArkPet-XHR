@@ -2,6 +2,9 @@ name: Build Windows and macOS Release
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: write
@@ -31,8 +34,7 @@ jobs:
         with:
           name: windows-release
           path: |
-            release/ArkPet-XHR Setup 1.0.0.exe
-            release/ArkPet-XHR Portable 1.0.0.exe
+            release/*.exe
 
   build-macos:
     name: build-macos-${{ matrix.arch }}
@@ -70,7 +72,7 @@ jobs:
           test -d "node_modules/@img/sharp-libvips-darwin-${{ matrix.arch }}"
 
       - name: Build macOS installer
-        run: npm run build && npx electron-builder --mac dmg --${{ matrix.arch }} --publish never
+        run: npm run check && npx electron-builder --mac dmg --${{ matrix.arch }} --publish never
 
       - name: Verify packaged runtime
         env:
@@ -87,7 +89,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-${{ matrix.arch }}-release
-          path: release/ArkPet-XHR-macOS-1.0.0-${{ matrix.arch }}.dmg
+          path: release/*.dmg
 
   publish-release:
     needs:
@@ -96,6 +98,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read package version
+        id: package
+        run: |
+          VERSION=$(node -e "console.log(require('./package.json').version)")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
@@ -105,8 +116,19 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0
-          name: ArkPet-XHR 1.0.0
-          body: ArkPet-XHR Windows and macOS builds.
+          tag_name: v${{ steps.package.outputs.version }}
+          name: ArkPet-XHR ${{ steps.package.outputs.version }}
+          body: |
+            ArkPet-XHR ${{ steps.package.outputs.version }}
+
+            在 1.0.0 基础上叠加的修复与优化版本，Windows 与 macOS 安装包均已提供。
+
+            主要变更：
+            - 修复导入较大 GGUF 模型时的内存问题，改为只读取文件头
+            - 本地语音与推理运行环境支持环境变量、安装包目录与用户数据目录
+            - 备份导入会校验内容、恢复素材目录，并在失败时给出明确提示
+            - 存档内容未变化时不再重复写盘，减少磁盘抖动
+            - 桌面覆盖层的休眠、回到默认落点、测试掉落、行走命令恢复生效
+            - 降低鼠标移动与桌面图标刷新的资源开销
           overwrite_files: true
           files: release-files/*

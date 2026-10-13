@@ -10,6 +10,9 @@ import {
 import { clamp } from "../lib/format";
 import { makeId } from "../lib/id";
 import { getVisualSize } from "../lib/renderConfig";
+import { chooseBoundAnimation } from "../lib/spineActions";
+import { resolveDialogModule } from "../lib/dialogModules";
+import { trackPetDesktopTime } from "../lib/petCompanion";
 import type {
   AppSettings,
   AppState,
@@ -52,6 +55,7 @@ type PhysicsState = EntitySnapshot & {
   nextIdleAt: number;
   nextJumpAt: number;
   idleUntil: number;
+  restingUntil: number;
   thrown: boolean;
   supportY: number | null;
   supportLeft: number | null;
@@ -62,10 +66,12 @@ type PhysicsState = EntitySnapshot & {
   pendingJumpAt: number;
   pendingJumpVx: number;
   pendingJumpVy: number;
+  fallbackRequested: boolean;
 };
 
 type DesktopIconRect = {
   id?: string;
+  petId?: string;
   name: string;
   foodPath: string;
   x: number;
@@ -92,6 +98,45 @@ type EntityProps = {
 
 const BASE_WIDTH = 104;
 const BASE_HEIGHT = 134;
+
+let overlayMouseIgnoreState: boolean | null = null;
+
+function applyOverlayMouseIgnore(ignore: boolean) {
+  if (overlayMouseIgnoreState === ignore) return;
+  overlayMouseIgnoreState = ignore;
+  window.deskPet.setOverlayMouseIgnore(ignore);
+}
+
+function shouldIgnoreOverlayMouse(
+  registry: Map<string, EntitySnapshot>,
+  clientX: number,
+  clientY: number
+) {
+  const target = document.elementFromPoint(clientX, clientY);
+  const interactive = Boolean(
+    target?.closest(
+      ".pet-chat-bubble, .pet-voice-indicator, .overlay-menu, .multi-pet-hitbox"
+    )
+  );
+  const hit = Array.from(registry.values()).some((entity) => {
+    const inHitbox =
+      clientX >= entity.x + entity.hitboxOffsetX &&
+      clientX <= entity.x + entity.hitboxOffsetX + entity.width &&
+      clientY >= entity.y + entity.hitboxOffsetY &&
+      clientY <= entity.y + entity.hitboxOffsetY + entity.height;
+    const inMenu =
+      entity.menu &&
+      clientX >= entity.menu.x &&
+      clientX <= entity.menu.x + entity.menu.width &&
+      clientY >= entity.menu.y &&
+      clientY <= entity.menu.y + entity.menu.height;
+    return Boolean(inHitbox || inMenu);
+  });
+  const anyMenuOpen = Array.from(registry.values()).some((entity) =>
+    Boolean(entity.menu)
+  );
+  return !(hit || anyMenuOpen || interactive);
+}
 
 function withDecayedHunger(state: AppState, now = Date.now()) {
   const hungerModule = state.customModules.find(
@@ -130,6 +175,52 @@ function withDecayedHunger(state: AppState, now = Date.now()) {
     };
   });
   return changed ? { ...state, pets } : state;
+}
+
+function withDesktopCompanionTime(state: AppState, now = Date.now()) {
+  const summoned = new Set(state.summonedPetIds);
+  let changed = false;
+  const pets = state.pets.map((pet) => {
+    const next = trackPetDesktopTime(pet, summoned.has(pet.id), now);
+    if (
+      next.desktopSecondsToday !== pet.desktopSecondsToday ||
+      next.desktopSecondsTotal !== pet.desktopSecondsTotal ||
+      next.desktopRelationship !== pet.desktopRelationship ||
+      next.desktopSampleAt !== pet.desktopSampleAt
+    ) {
+      changed = true;
+    }
+    return next;
+  });
+  const nextState = changed
+    ? {
+        ...state,
+        pets
+      }
+    : state;
+  const activePet = pets.find((pet) => pet.id === state.activePetId);
+  if (
+    activePet &&
+    Number.isFinite(activePet.desktopRelationship) &&
+    Math.abs(
+      Number(activePet.desktopRelationship) -
+        Number(state.wellbeing?.relationship || 0)
+    ) > 0.001
+  ) {
+    return {
+      ...nextState,
+      wellbeing: {
+        ...state.wellbeing,
+        relationship: Number(activePet.desktopRelationship),
+        lastSimulatedAt: new Date(now).toISOString()
+      }
+    };
+  }
+  return nextState;
+}
+
+function withOverlayStats(state: AppState, now = Date.now()) {
+  return withDesktopCompanionTime(withDecayedHunger(state, now), now);
 }
 
 function buildSupportSurfaces(icons: DesktopIconRect[]) {
@@ -172,38 +263,20 @@ export function MultiPetOverlay() {
     };
   }, [desktopIcons]);
   const registry = useRef(new Map<string, EntitySnapshot>());
+  const iconSignatureRef = useRef("");
 
   useEffect(() => {
     function handleMouseMove(event: MouseEvent) {
-      const target = document.elementFromPoint(event.clientX, event.clientY);
-      const interactive = Boolean(
-        target?.closest(
-          ".pet-chat-bubble, .pet-voice-indicator, .overlay-menu, .multi-pet-hitbox"
+      applyOverlayMouseIgnore(
+        shouldIgnoreOverlayMouse(
+          registry.current,
+          event.clientX,
+          event.clientY
         )
       );
-      const hit = Array.from(registry.current.values()).some((entity) => {
-        const inHitbox =
-          event.clientX >= entity.x + entity.hitboxOffsetX &&
-          event.clientX <=
-            entity.x + entity.hitboxOffsetX + entity.width &&
-          event.clientY >= entity.y + entity.hitboxOffsetY &&
-          event.clientY <=
-            entity.y + entity.hitboxOffsetY + entity.height;
-        const inMenu =
-          entity.menu &&
-          event.clientX >= entity.menu.x &&
-          event.clientX <= entity.menu.x + entity.menu.width &&
-          event.clientY >= entity.menu.y &&
-          event.clientY <= entity.menu.y + entity.menu.height;
-        return inHitbox || inMenu;
-      });
-      const anyMenuOpen = Array.from(registry.current.values()).some(
-        (entity) => Boolean(entity.menu)
-      );
-      window.deskPet.setOverlayMouseIgnore(!(hit || anyMenuOpen || interactive));
     }
     function handleMouseLeave() {
-      window.deskPet.setOverlayMouseIgnore(true);
+      applyOverlayMouseIgnore(true);
     }
     window.addEventListener("mousemove", handleMouseMove, { passive: true });
     window.addEventListener("mouseleave", handleMouseLeave);
@@ -217,7 +290,7 @@ export function MultiPetOverlay() {
     let mounted = true;
     window.deskPet.getState().then((state) => {
       if (!mounted) return;
-      const nextState = withDecayedHunger(state);
+      const nextState = withOverlayStats(state);
       appStateRef.current = nextState;
       setAppState(nextState);
       setOverlaySettings(nextState.settings.overlay);
@@ -230,11 +303,15 @@ export function MultiPetOverlay() {
     });
     const refreshIcons = () => {
       void window.deskPet.getDesktopIcons().then((icons) => {
-        if (mounted) setDesktopIcons(icons);
+        if (!mounted) return;
+        const signature = JSON.stringify(icons);
+        if (signature === iconSignatureRef.current) return;
+        iconSignatureRef.current = signature;
+        setDesktopIcons(icons);
       });
     };
     refreshIcons();
-    const iconTimer = window.setInterval(refreshIcons, 5000);
+    const iconTimer = window.setInterval(refreshIcons, 30000);
     const stateSubscription = window.deskPet.onStateChanged((state) => {
       appStateRef.current = state;
       setAppState(state);
@@ -255,7 +332,7 @@ export function MultiPetOverlay() {
     const timer = window.setInterval(() => {
       const state = appStateRef.current;
       if (!state) return;
-      const nextState = withDecayedHunger(state);
+      const nextState = withOverlayStats(state);
       if (nextState === state) return;
       appStateRef.current = nextState;
       setAppState(nextState);
@@ -324,6 +401,7 @@ export function MultiPetOverlay() {
         }
         const nextPlatform: DesktopIconRect = {
           id: payload.id,
+          petId: payload.petId,
           name: "攀爬落脚点",
           foodPath: "",
           x: Number(payload.x),
@@ -348,11 +426,7 @@ export function MultiPetOverlay() {
   const summonedPets = appState.summonedPetIds
     .map((petId) => appState.pets.find((pet) => pet.id === petId))
     .filter(Boolean) as PetProfile[];
-  const dialogModule =
-    appState.customModules.find(
-      (item) => item.id === appState.settings.chat?.dialogModuleId
-    ) || appState.customModules[0];
-  const platforms = [...desktopIcons, ...climbPlatforms];
+  const dialogModule = resolveDialogModule(appState);
 
   return (
     <div className="overlay-root" style={{ pointerEvents: "none" }}>
@@ -367,12 +441,16 @@ export function MultiPetOverlay() {
           dialogModule={dialogModule}
           customModules={appState.customModules}
           voiceProfiles={appState.voiceProfiles}
-          desktopIcons={platforms}
+          desktopIcons={[
+            ...desktopIcons,
+            ...climbPlatforms.filter((platform) => platform.petId === pet.id)
+          ]}
           iconSteps={iconSteps}
           foodNotice={foodDropNotice[pet.id]}
           onClimbPlatform={(platform) => {
             const timedPlatform = {
               ...platform,
+              petId: pet.id,
               name: "攀爬落脚点",
               foodPath: ""
             };
@@ -442,6 +520,7 @@ function MultiPetEntity({
   const foodTargetIdRef = useRef("");
   const nextFoodSeekAtRef = useRef(0);
   const eatingFoodRef = useRef(false);
+  const idleActionDurationRef = useRef(3200);
   const climbChainActiveRef = useRef(false);
   const climbChainStepsRef = useRef(0);
   const climbChainHeightRef = useRef(0);
@@ -492,8 +571,8 @@ function MultiPetEntity({
     [desktopIcons]
   );
   const supportSurfaces = useMemo(
-    () => buildSupportSurfaces(desktopIcons),
-    [desktopIcons]
+    () => (climbModule ? buildSupportSurfaces(desktopIcons) : []),
+    [desktopIcons, climbModule]
   );
 
   function setEntityVisual(next: typeof visualState) {
@@ -547,16 +626,19 @@ function MultiPetEntity({
   const [chatDraft, setChatDraft] = useState("");
   const [chatBusy, setChatBusy] = useState(false);
   const [zIndex, setZIndex] = useState(10);
+  const desktopRenderConfig = pet.desktopRenderConfig || pet.renderConfig;
   const scale = (overlaySettings.scale || 1) * (pet.scale || 1);
-  const width = (pet.renderConfig?.hitboxWidth || BASE_WIDTH) * scale;
-  const height = (pet.renderConfig?.hitboxHeight || BASE_HEIGHT) * scale;
-  const visual = getVisualSize(pet.renderConfig);
+  const width = (desktopRenderConfig?.hitboxWidth || BASE_WIDTH) * scale;
+  const height = (desktopRenderConfig?.hitboxHeight || BASE_HEIGHT) * scale;
+  const visual = getVisualSize(desktopRenderConfig);
   const visualWidth = visual.visualWidth * scale;
   const visualHeight = visual.visualHeight * scale;
   const canvasWidth =
-    Math.max(pet.renderConfig?.displayWidth || 260, visual.visualWidth) * scale;
+    Math.max(desktopRenderConfig?.displayWidth || 260, visual.visualWidth) *
+    scale;
   const canvasHeight =
-    Math.max(pet.renderConfig?.displayHeight || 320, visual.visualHeight) * scale;
+    Math.max(desktopRenderConfig?.displayHeight || 320, visual.visualHeight) *
+    scale;
   const bounds = useMemo(
     () => ({
       left: metrics.workArea.x - metrics.bounds.x,
@@ -572,8 +654,8 @@ function MultiPetEntity({
     y: bounds.floor - height,
     width,
     height,
-    hitboxOffsetX: (pet.renderConfig?.hitboxOffsetX || 0) * scale,
-    hitboxOffsetY: (pet.renderConfig?.hitboxOffsetY || 0) * scale,
+    hitboxOffsetX: (desktopRenderConfig?.hitboxOffsetX || 0) * scale,
+    hitboxOffsetY: (desktopRenderConfig?.hitboxOffsetY || 0) * scale,
     vx: 0,
     vy: 0,
     direction: 1,
@@ -591,6 +673,7 @@ function MultiPetEntity({
     nextJumpAt: performance.now() + 1800,
     idleUntil: 0
     ,
+    restingUntil: 0,
     thrown: false,
     supportY: null,
     supportLeft: null,
@@ -600,7 +683,8 @@ function MultiPetEntity({
     nextDirectionAt: performance.now() + 4000,
     pendingJumpAt: 0,
     pendingJumpVx: 0,
-    pendingJumpVy: 0
+    pendingJumpVy: 0,
+    fallbackRequested: false
   });
   const configuredWalkSpeed = Number(overlaySettings.walkSpeed || 63);
   const effectiveWalkSpeed =
@@ -635,8 +719,10 @@ function MultiPetEntity({
       }
     }
     if (hitboxRef.current) {
-      entity.hitboxOffsetX = (pet.renderConfig?.hitboxOffsetX || 0) * scale;
-      entity.hitboxOffsetY = (pet.renderConfig?.hitboxOffsetY || 0) * scale;
+      entity.hitboxOffsetX =
+        (desktopRenderConfig?.hitboxOffsetX || 0) * scale;
+      entity.hitboxOffsetY =
+        (desktopRenderConfig?.hitboxOffsetY || 0) * scale;
       if (styleCache.hitboxLeft !== entity.hitboxOffsetX) {
         hitboxRef.current.style.left = `${entity.hitboxOffsetX}px`;
         styleCache.hitboxLeft = entity.hitboxOffsetX;
@@ -660,8 +746,8 @@ function MultiPetEntity({
         8,
         window.innerHeight - menuHeight - 8
       );
-      menuRef.current.style.left = `${x}px`;
-      menuRef.current.style.top = `${y}px`;
+      menuRef.current.style.left = `${x - entity.x}px`;
+      menuRef.current.style.top = `${y - entity.y}px`;
       entity.menu = {
         x,
         y,
@@ -694,6 +780,8 @@ function MultiPetEntity({
     target: DesktopIconRect,
     now: number
   ) {
+    if (!climbModule) return;
+    entity.fallbackRequested = false;
     const gravity = Number(overlaySettings.gravity || 1800);
     const currentCenterX = entity.x + width / 2;
     const targetCenterX = target.x + target.width / 2;
@@ -835,7 +923,7 @@ function MultiPetEntity({
       return;
     }
 
-    if (verticalDistance > 12) {
+    if (climbModule && verticalDistance > 12) {
       if (aligned && verticalDistance <= iconSteps.y * 2.1) {
         queueJumpTo(entity, target, now);
         return;
@@ -937,6 +1025,67 @@ function MultiPetEntity({
     return clamp(base * chainDecay * heightDecay, 0, 100);
   }
 
+  function shouldApproachClimbTarget() {
+    if (!climbModule) return false;
+    const chance = clamp(
+      Number(climbModule.climbApproachChance ?? 45),
+      0,
+      100
+    );
+    return Math.random() * 100 < chance;
+  }
+
+  function hasLandingAhead(entity: PhysicsState) {
+    const gravity = Math.max(1, Number(overlaySettings.gravity || 1800));
+    const lookAhead = clamp(
+      Math.abs(entity.vy) / gravity + 0.12,
+      0.16,
+      0.6
+    );
+    const predictedX = entity.x + entity.vx * lookAhead;
+    const predictedBottom =
+      entity.y +
+      height +
+      entity.vy * lookAhead +
+      0.5 * gravity * lookAhead * lookAhead;
+    return supportSurfaces.some(
+      (surface) =>
+        surface.y >= entity.y + height - 8 &&
+        surface.y <= predictedBottom + iconSteps.y * 0.65 &&
+        predictedX + width * 0.64 > surface.x + 2 &&
+        predictedX + width * 0.36 < surface.x + surface.width - 2
+    );
+  }
+
+  function requestAirborneFallback(entity: PhysicsState, now: number) {
+    if (
+      !climbModule ||
+      entity.dragging ||
+      entity.thrown ||
+      entity.fallbackRequested ||
+      entity.vy < 120
+    ) {
+      return;
+    }
+    const remainingDrop = bounds.floor - (entity.y + height);
+    if (
+      remainingDrop < iconSteps.y * 0.5 ||
+      hasLandingAhead(entity)
+    ) {
+      return;
+    }
+    entity.fallbackRequested = true;
+    entity.nextJumpAt = now + 700;
+    void triggerClimbPlatform().then((platform) => {
+      if (!platform) {
+        entity.fallbackRequested = false;
+        return;
+      }
+      if (entity.dragging || entity.grounded) return;
+      beginClimbJump(entity, platform, performance.now());
+    });
+  }
+
   function updateGroundedBehavior(
     entity: PhysicsState,
     now: number,
@@ -949,7 +1098,12 @@ function MultiPetEntity({
       }
     }
 
-    if (entity.pendingJumpAt > 0 && now >= entity.pendingJumpAt) {
+    if (
+      climbModule &&
+      entity.pendingJumpAt > 0 &&
+      entity.idleUntil <= now &&
+      now >= entity.pendingJumpAt
+    ) {
       entity.vx = entity.pendingJumpVx;
       entity.vy = entity.pendingJumpVy;
       entity.pendingJumpAt = 0;
@@ -962,13 +1116,18 @@ function MultiPetEntity({
       return;
     }
 
-    const foodTarget = chooseFoodTarget(now);
+    const foodTarget =
+      entity.idleUntil <= now ? chooseFoodTarget(now) : null;
     if (foodTarget) {
       handleFoodSeeking(entity, foodTarget, now);
       return;
     }
 
-    if (climbModule && entity.supportY !== null) {
+    if (
+      climbModule &&
+      entity.supportY !== null &&
+      entity.idleUntil <= now
+    ) {
       const currentCenterX = entity.x + width / 2;
       const upwardIcons = desktopIcons.filter(
         (icon) =>
@@ -1021,6 +1180,10 @@ function MultiPetEntity({
         if (Math.random() * 100 >= chance) {
           endClimbChain(entity, now);
         } else if (reachableTarget) {
+          if (!shouldApproachClimbTarget()) {
+            endClimbChain(entity, now);
+            return;
+          }
           beginClimbJump(entity, reachableTarget, now);
           return;
         } else {
@@ -1035,6 +1198,10 @@ function MultiPetEntity({
             }
           )[0];
           if (nextApproachTarget) {
+            if (!shouldApproachClimbTarget()) {
+              endClimbChain(entity, now);
+              return;
+            }
             climbApproachTargetIdRef.current =
               nextApproachTarget.id ||
               `${nextApproachTarget.x}:${nextApproachTarget.y}`;
@@ -1051,29 +1218,21 @@ function MultiPetEntity({
             return;
           }
 
-          if (
-            Math.random() * 100 <
-            Number(climbModule.climbChance ?? 55)
-          ) {
-            entity.nextJumpAt = now + 1000;
-            void triggerClimbPlatform().then((platform) => {
-              if (!entity.grounded || entity.dragging) return;
-              if (platform) {
-                beginClimbJump(entity, platform, performance.now());
-                return;
-              }
-              endClimbChain(entity, performance.now());
-            });
-            return;
-          }
-          endClimbChain(entity, now);
+          entity.nextJumpAt = now + 1000;
+          void triggerClimbPlatform().then((platform) => {
+            if (!entity.grounded || entity.dragging) return;
+            if (platform) {
+              beginClimbJump(entity, platform, performance.now());
+              return;
+            }
+            endClimbChain(entity, performance.now());
+          });
+          return;
         }
       }
     }
 
-    const onDesktopPlatform =
-      entity.supportY !== null && entity.supportY !== bounds.floor;
-    if (!overlaySettings.idleActionEnabled || onDesktopPlatform) {
+    if (!overlaySettings.idleActionEnabled) {
       entity.idleUntil = 0;
       if (Math.abs(entity.vx) < 4) {
         chooseRoamDirection(entity, now);
@@ -1092,7 +1251,7 @@ function MultiPetEntity({
       entity.nextIdleAt = now + seconds * 1000;
       if (Math.random() * 100 < overlaySettings.idleActionChance) {
         entity.vx = 0;
-        entity.idleUntil = now + 3200;
+        entity.idleUntil = now + idleActionDurationRef.current;
         setEntityVisual("idle");
       } else {
         chooseRoamDirection(entity, now);
@@ -1198,11 +1357,17 @@ function MultiPetEntity({
 
       if (entity.dragging) {
         setEntityVisual("drag");
+      } else if (entity.restingUntil > now) {
+        entity.vx = 0;
+        entity.vy = 0;
+        setEntityVisual("sleep");
       } else if (!overlaySettings.gravityLocked) {
-        if (entity.idleUntil > now) {
-          entity.idleUntil = 0;
-        }
-        if (now >= entity.nextJumpAt) {
+        if (
+          climbModule &&
+          entity.idleUntil <= now &&
+          now >= entity.nextJumpAt
+        ) {
+          entity.fallbackRequested = false;
           entity.vy = -Math.max(80, effectiveWalkSpeed * 1.15);
           entity.directionY = -1;
           entity.nextJumpAt =
@@ -1212,7 +1377,9 @@ function MultiPetEntity({
           if (
             climbModule &&
             Math.random() * 100 <
-              Number(climbModule.climbJumpChance ?? 65)
+              (Number(climbModule.climbJumpChance ?? 65) *
+                Number(climbModule.climbChance ?? 55)) /
+                100
           ) {
             void triggerClimbPlatform();
           }
@@ -1305,7 +1472,7 @@ function MultiPetEntity({
             if (Math.random() * 100 < overlaySettings.idleActionChance) {
               entity.vx = 0;
               entity.vy = 0;
-              entity.idleUntil = now + 3200;
+              entity.idleUntil = now + idleActionDurationRef.current;
             }
           }
           setEntityDirection(entity.direction);
@@ -1409,11 +1576,15 @@ function MultiPetEntity({
                 )
                 .sort((left, right) => left.y - right.y)[0]
             : undefined;
+        if (lockedSupportY === null && !landingIcon) {
+          requestAirborneFallback(entity, now);
+        }
         const floorY = bounds.floor - height;
         if (lockedSupportY !== null) {
           entity.y = lockedSupportY - height;
           entity.vy = 0;
           entity.grounded = true;
+          entity.fallbackRequested = false;
           updateGroundedBehavior(entity, now, false);
         } else if (landingIcon && landingIcon.y <= bounds.floor) {
           const wasFalling =
@@ -1421,6 +1592,7 @@ function MultiPetEntity({
           entity.y = landingIcon.y - height;
           entity.vy = 0;
           entity.grounded = true;
+          entity.fallbackRequested = false;
           entity.supportY = landingIcon.y;
           entity.supportLeft = landingIcon.x;
           entity.supportRight = landingIcon.x + landingIcon.width;
@@ -1438,6 +1610,7 @@ function MultiPetEntity({
           } else {
             entity.vy = 0;
             entity.grounded = true;
+            entity.fallbackRequested = false;
             entity.supportY = bounds.floor;
             entity.supportLeft = bounds.left;
             entity.supportRight = bounds.right;
@@ -1506,6 +1679,91 @@ function MultiPetEntity({
   );
 
   useEffect(() => {
+    function endStrayDrag() {
+      const entity = physics.current;
+      if (!entity.dragging) return;
+      entity.dragging = false;
+      entity.thrown = true;
+      setEntityVisual("fall");
+      applyOverlayMouseIgnore(true);
+    }
+    window.addEventListener("pointerup", endStrayDrag);
+    window.addEventListener("pointercancel", endStrayDrag);
+    window.addEventListener("blur", endStrayDrag);
+    return () => {
+      window.removeEventListener("pointerup", endStrayDrag);
+      window.removeEventListener("pointercancel", endStrayDrag);
+      window.removeEventListener("blur", endStrayDrag);
+    };
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = window.deskPet.onOverlayCommand((command) => {
+      const commandPetId = "petId" in command ? command.petId : undefined;
+      if (commandPetId && commandPetId !== pet.id) return;
+      const entity = physics.current;
+      const now = performance.now();
+      if (command.type === "rest") {
+        entity.vx = 0;
+        entity.vy = 0;
+        entity.grounded = true;
+        entity.idleUntil = 0;
+        entity.restingUntil = now + 24 * 60 * 60 * 1000;
+        setEntityVisual("sleep");
+      } else if (command.type === "home" || command.type === "show") {
+        entity.x = bounds.left + (bounds.right - bounds.left) / 2 - width / 2;
+        entity.y = bounds.floor - height;
+        entity.vx = 0;
+        entity.vy = 0;
+        entity.grounded = true;
+        entity.thrown = false;
+        entity.dragging = false;
+        entity.idleUntil = 0;
+        entity.restingUntil = 0;
+        entity.supportY = bounds.floor;
+        entity.supportLeft = bounds.left;
+        entity.supportRight = bounds.right;
+        entity.supportId = "floor";
+        entity.supportGraceUntil = 0;
+        setEntityVisual("idle");
+        sync();
+      } else if (command.type === "drop") {
+        entity.x = bounds.left + (bounds.right - bounds.left) / 2 - width / 2;
+        entity.y = 40;
+        entity.vx = 0;
+        entity.vy = 180;
+        entity.grounded = false;
+        entity.thrown = true;
+        entity.dragging = false;
+        entity.idleUntil = 0;
+        entity.restingUntil = 0;
+        entity.supportY = null;
+        entity.supportLeft = null;
+        entity.supportRight = null;
+        entity.supportId = null;
+        entity.supportGraceUntil = 0;
+        setEntityVisual("fall");
+        sync();
+      } else if (command.type === "walk") {
+        entity.vx = effectiveWalkSpeed * entity.direction;
+        entity.thrown = false;
+        entity.idleUntil = 0;
+        entity.restingUntil = 0;
+        setEntityVisual("walk");
+      }
+    });
+    return unsubscribe;
+  }, [
+    pet.id,
+    bounds.left,
+    bounds.right,
+    bounds.floor,
+    width,
+    height,
+    effectiveWalkSpeed
+  ]);
+
+  useEffect(() => {
     if (!menuOpen) return;
     function handleOutsidePointer(event: PointerEvent) {
       const target = event.target as Node;
@@ -1531,6 +1789,7 @@ function MultiPetEntity({
     entity.lastPointerAt = performance.now();
     entity.vx = 0;
     entity.vy = 0;
+    entity.restingUntil = 0;
     climbChainActiveRef.current = false;
     climbChainStepsRef.current = 0;
     climbChainHeightRef.current = 0;
@@ -1593,6 +1852,13 @@ function MultiPetEntity({
       entity.thrown = false;
       setEntityVisual("land");
       event.currentTarget.releasePointerCapture(event.pointerId);
+      applyOverlayMouseIgnore(
+        shouldIgnoreOverlayMouse(
+          registry.current,
+          event.clientX,
+          event.clientY
+        )
+      );
       return;
     }
     entity.vx = clamp(entity.vx, -1200, 1200);
@@ -1604,6 +1870,9 @@ function MultiPetEntity({
     setEntityDirection(entity.direction);
     setEntityVisual("fall");
     event.currentTarget.releasePointerCapture(event.pointerId);
+    applyOverlayMouseIgnore(
+      shouldIgnoreOverlayMouse(registry.current, event.clientX, event.clientY)
+    );
   }
 
   async function sendChatMessage() {
@@ -1742,12 +2011,40 @@ function MultiPetEntity({
             fitHeight={visualHeight}
             displayWidth={canvasWidth}
             displayHeight={canvasHeight}
-            offsetX={pet.renderConfig?.offsetX}
-            offsetY={pet.renderConfig?.offsetY}
+            offsetX={desktopRenderConfig?.offsetX}
+            offsetY={desktopRenderConfig?.offsetY}
             anchorBottom
             normalizeBodySize
             speedMultiplier={animationSpeed}
             className="multi-pet-spine"
+            onAnimationData={(items) => {
+              const names = items.map((item) => item.name);
+              const durations = Object.fromEntries(
+                items.map((item) => [item.name, item.duration])
+              );
+              const idleName = chooseBoundAnimation(
+                "idle",
+                pet.actionBindings,
+                names,
+                durations
+              );
+              const idleItem =
+                items.find((item) => item.name === idleName) ||
+                ["Special", "Relax", "Sit", "Idle", "Default"]
+                  .map((candidate) =>
+                    items.find(
+                      (item) =>
+                        item.name.toLowerCase() === candidate.toLowerCase()
+                    )
+                  )
+                  .find(Boolean);
+              if (idleItem && idleItem.duration > 0) {
+                idleActionDurationRef.current = Math.max(
+                  1000,
+                  idleItem.duration * 1000
+                );
+              }
+            }}
             fallback={
               <PetAvatar
                 primary={pet.accent}
@@ -1776,6 +2073,14 @@ function MultiPetEntity({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onLostPointerCapture={() => {
+          const entity = physics.current;
+          if (!entity.dragging) return;
+          entity.dragging = false;
+          entity.thrown = true;
+          setEntityVisual("fall");
+          applyOverlayMouseIgnore(true);
+        }}
         onDoubleClick={() => window.deskPet.showControl()}
         onContextMenu={(event) => {
           event.preventDefault();

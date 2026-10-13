@@ -49,6 +49,22 @@ export function VoiceModuleView({
     message: "正在检查训练环境..."
   });
 
+  useEffect(() => {
+    let mounted = true;
+    const refresh = async () => {
+      const runtime = await window.deskPet.getVoiceTrainingRuntime();
+      if (mounted) setTrainingRuntime(runtime);
+    };
+    void refresh();
+    const timer = window.setInterval(() => {
+      if (!trainingRuntime.ready) void refresh();
+    }, 3000);
+    return () => {
+      mounted = false;
+      window.clearInterval(timer);
+    };
+  }, []);
+
   if (!state) return null;
   const currentState = state;
   const voiceProfiles = currentState.voiceProfiles || [];
@@ -66,22 +82,6 @@ export function VoiceModuleView({
     currentState.trainingProfiles.find(
       (profile) => profile.id === currentState.activeTrainingProfileId
     ) || currentState.trainingProfiles[0];
-
-  useEffect(() => {
-    let mounted = true;
-    const refresh = async () => {
-      const runtime = await window.deskPet.getVoiceTrainingRuntime();
-      if (mounted) setTrainingRuntime(runtime);
-    };
-    void refresh();
-    const timer = window.setInterval(() => {
-      if (!trainingRuntime.ready) void refresh();
-    }, 3000);
-    return () => {
-      mounted = false;
-      window.clearInterval(timer);
-    };
-  }, []);
 
   function createDraft() {
     setDraft({

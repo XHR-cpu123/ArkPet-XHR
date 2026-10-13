@@ -184,7 +184,10 @@ export function SettingsView() {
     if (!window.confirm("导入备份会替换当前状态，确定继续吗？")) return;
     setBackupBusy(true);
     try {
-      await window.deskPet.importBackup();
+      const result = await window.deskPet.importBackup();
+      if (result.ok === false) {
+        window.alert(result.error || "导入备份失败。");
+      }
     } finally {
       setBackupBusy(false);
     }

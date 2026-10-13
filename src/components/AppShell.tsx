@@ -49,6 +49,27 @@ export function AppShell() {
       state?.settings.appearance?.theme || "default";
   }, [state?.settings.appearance?.theme]);
 
+  useEffect(() => {
+    if (!state || state.activeView !== "workshop") return;
+    if (
+      state.pets.every(
+        (pet) => pet.desktopRenderConfig || !pet.renderConfig
+      )
+    ) {
+      return;
+    }
+    void updateState({
+      pets: state.pets.map((pet) =>
+        pet.desktopRenderConfig || !pet.renderConfig
+          ? pet
+          : {
+              ...pet,
+              desktopRenderConfig: pet.renderConfig
+            }
+      )
+    });
+  }, [state?.activeView, state?.pets, updateState]);
+
   if (!state) {
     return (
       <div className="app-loading">

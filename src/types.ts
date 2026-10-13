@@ -90,6 +90,11 @@ export type PetProfile = {
   greeting: string;
   hunger: number;
   hungerUpdatedAt?: string;
+  desktopRelationship?: number;
+  desktopSecondsToday?: number;
+  desktopSecondsTotal?: number;
+  desktopDayKey?: string;
+  desktopSampleAt?: string;
   avatarUrl?: string;
   assets: PetAsset[];
   animationMap: AnimationMap;
@@ -98,6 +103,7 @@ export type PetProfile = {
   actionBindings?: ActionBindings;
   modulePlugins?: PetModulePlugins;
   renderConfig?: PetRenderConfig;
+  desktopRenderConfig?: PetRenderConfig;
   createdAt: string;
   updatedAt: string;
 };
@@ -278,6 +284,7 @@ export type CustomDialogModule = {
   windowHeight?: number;
   climbChance?: number;
   climbJumpChance?: number;
+  climbApproachChance?: number;
   climbChainChance?: number;
   climbChainDecay?: number;
   climbHeightDecay?: number;
@@ -707,7 +714,12 @@ export type DeskPetApi = {
   openPetStore: () => Promise<boolean>;
   openDataFolder: () => Promise<boolean>;
   exportBackup: () => Promise<{ canceled: boolean; folder?: string }>;
-  importBackup: () => Promise<{ canceled: boolean; state?: AppState }>;
+  importBackup: () => Promise<{
+    canceled: boolean;
+    ok?: boolean;
+    error?: string;
+    state?: AppState;
+  }>;
   onStateChanged: (callback: (state: AppState) => void) => () => void;
   onOverlayCommand: (callback: (command: OverlayCommand) => void) => () => void;
   onOverlayMode: (callback: (mode: OverlayCommand["type"]) => void) => () => void;

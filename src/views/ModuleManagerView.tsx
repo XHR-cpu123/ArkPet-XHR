@@ -652,6 +652,55 @@ export function ModuleManagerView() {
                       />
                     </label>
                     <label className="module-climb-setting">
+                      <span>主动追踪软件概率</span>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={settingsModule.climbApproachChance ?? 45}
+                        onChange={(event) =>
+                          void updateState({
+                            customModules: currentState.customModules.map(
+                              (module) =>
+                                module.id === settingsModule.id
+                                  ? {
+                                      ...module,
+                                      climbApproachChance: Number(
+                                        event.target.value
+                                      )
+                                    }
+                                  : module
+                            )
+                          })
+                        }
+                      />
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={settingsModule.climbApproachChance ?? 45}
+                        onChange={(event) =>
+                          void updateState({
+                            customModules: currentState.customModules.map(
+                              (module) =>
+                                module.id === settingsModule.id
+                                  ? {
+                                      ...module,
+                                      climbApproachChance: Math.max(
+                                        0,
+                                        Math.min(
+                                          100,
+                                          Number(event.target.value) || 0
+                                        )
+                                      )
+                                    }
+                                  : module
+                            )
+                          })
+                        }
+                      />
+                    </label>
+                    <label className="module-climb-setting">
                       <span>连跳续跳概率</span>
                       <input
                         type="number"

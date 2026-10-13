@@ -156,10 +156,13 @@ export function WorkshopView() {
           window.deskPet.updateStateSync({
             pets: state.pets.map((item) =>
               item.id === currentPet.id
-                ? {
-                    ...item,
-                    renderConfig: withRenderConfigDefaults(draftRenderConfig)
-                  }
+                  ? {
+                      ...item,
+                      renderConfig: withRenderConfigDefaults(draftRenderConfig),
+                      desktopRenderConfig: withRenderConfigDefaults(
+                        draftRenderConfig
+                      )
+                    }
                 : item
             )
           });
@@ -199,7 +202,11 @@ export function WorkshopView() {
         window.deskPet.updateStateSync({
           pets: currentState.pets.map((item) =>
             item.id === currentPet.id
-              ? { ...item, renderConfig: withRenderConfigDefaults(draft) }
+              ? {
+                  ...item,
+                  renderConfig: withRenderConfigDefaults(draft),
+                  desktopRenderConfig: withRenderConfigDefaults(draft)
+                }
               : item
           )
         });
@@ -452,12 +459,14 @@ export function WorkshopView() {
   }
 
   async function commitRenderConfig() {
+    const nextRenderConfig = withRenderConfigDefaults({
+      ...(pet.renderConfig || {}),
+      ...activeRenderConfig
+    });
     await savePet({
       ...pet,
-      renderConfig: withRenderConfigDefaults({
-        ...(pet.renderConfig || {}),
-        ...activeRenderConfig
-      })
+      renderConfig: nextRenderConfig,
+      desktopRenderConfig: nextRenderConfig
     });
     setRenderConfigDirty(false);
   }
@@ -468,26 +477,17 @@ export function WorkshopView() {
       return;
     }
     if (renderConfigDirty) {
-      const shouldSave = window.confirm(
-        "高级设置有未保存的改动，是否保存后再退出？"
-      );
-      if (shouldSave) {
-        await commitRenderConfig();
-      } else {
-        setDraftRenderConfig(withRenderConfigDefaults(pet.renderConfig));
-        setRenderConfigDirty(false);
-      }
+      await commitRenderConfig();
     }
     setShowAdvanced(false);
   }
 
-  function getAdvancedPreviewScale(config: Partial<PetRenderConfig>) {
-    const visual = getVisualSize(config);
+  function getAdvancedPreviewScale(_config: Partial<PetRenderConfig>) {
     const fitScale = Math.min(
-      (stageSize.width - 80) / Math.max(1, visual.visualWidth),
-      (stageSize.height - 80) / Math.max(1, visual.visualHeight)
+      (stageSize.width - 72) / 480,
+      (stageSize.height - 72) / 580
     );
-    return Math.max(0.12, Math.min(3.2, fitScale * 0.78));
+    return Math.max(0.35, Math.min(2.2, fitScale * 1.12));
   }
 
   function beginAdvancedDrag(
@@ -732,11 +732,13 @@ export function WorkshopView() {
 
         <div
           ref={stageRef}
-          className={
-            mode === "create"
-              ? "workshop-stage workshop-stage--empty"
-              : "workshop-stage"
-          }
+          className={[
+            "workshop-stage",
+            mode === "create" ? "workshop-stage--empty" : "",
+            showAdvanced ? "workshop-stage--advanced" : ""
+          ]
+            .filter(Boolean)
+            .join(" ")}
         >
           <div className="workshop-platform" />
           {mode === "create" ? (
@@ -1087,6 +1089,21 @@ export function WorkshopView() {
                     </>
                   )}
                 </div>
+                <div className="advanced-save-row">
+                  <button
+                    className="advanced-save-button"
+                    type="button"
+                    disabled={!renderConfigDirty}
+                    onClick={() => void commitRenderConfig()}
+                  >
+                    保存高级设置
+                  </button>
+                  <span>
+                    {renderConfigDirty
+                      ? "有未保存的改动"
+                      : "当前设置已保存"}
+                  </span>
+                </div>
                 <button
                   className="advanced-future-button"
                   type="button"
@@ -1154,16 +1171,7 @@ export function WorkshopView() {
                         <Puzzle size={15} />
                         模组
                       </span>
-                      <div
-                        className="module-bound-selector"
-                        onBlur={(event) => {
-                          if (
-                            !event.currentTarget.contains(event.relatedTarget)
-                          ) {
-                            setModulePickerOpen(false);
-                          }
-                        }}
-                      >
+                      <div className="module-bound-selector">
                         <button
                           className="module-picker-toggle"
                           type="button"
@@ -1174,6 +1182,49 @@ export function WorkshopView() {
                           <Plus size={13} />
                           添加模组
                         </button>
+                        {modulePickerOpen && (
+                          <div className="module-add-menu">
+                            {(state.customModules || [])
+                              .filter(
+                                (module) =>
+                                  module.enabled !== false &&
+                                  !(
+                                    pet.modulePlugins?.boundModuleIds || []
+                                  ).includes(module.id)
+                              )
+                              .map((module) => (
+                                <button
+                                  type="button"
+                                  key={module.id}
+                                  onClick={() => {
+                                    saveModulePlugin({
+                                      boundModuleIds: [
+                                        ...new Set([
+                                          ...(pet.modulePlugins?.boundModuleIds ||
+                                            []),
+                                          module.id
+                                        ])
+                                      ]
+                                    });
+                                  }}
+                                >
+                                  <Plus size={13} />
+                                  {module.contextMenuLabel || module.name}
+                                </button>
+                              ))}
+                            {(state.customModules || []).filter(
+                              (module) =>
+                                module.enabled !== false &&
+                                !(
+                                  pet.modulePlugins?.boundModuleIds || []
+                                ).includes(module.id)
+                            ).length === 0 && (
+                              <span className="empty-copy">
+                                没有可添加的模组。
+                              </span>
+                            )}
+                          </div>
+                        )}
                         <div className="module-bound-list">
                           {(pet.modulePlugins?.boundModuleIds || [])
                             .map((moduleId) =>
@@ -1203,50 +1254,6 @@ export function WorkshopView() {
                               </span>
                             ))}
                         </div>
-                        {modulePickerOpen && (
-                          <div className="module-add-menu">
-                            {(state.customModules || [])
-                              .filter(
-                                (module) =>
-                                  module.enabled !== false &&
-                                  !(
-                                    pet.modulePlugins?.boundModuleIds || []
-                                  ).includes(module.id)
-                              )
-                              .map((module) => (
-                                <button
-                                  type="button"
-                                  key={module.id}
-                                  onClick={() => {
-                                    saveModulePlugin({
-                                      boundModuleIds: [
-                                        ...new Set([
-                                          ...(pet.modulePlugins?.boundModuleIds ||
-                                            []),
-                                          module.id
-                                        ])
-                                      ]
-                                    });
-                                    setModulePickerOpen(false);
-                                  }}
-                                >
-                                  <Plus size={13} />
-                                  {module.contextMenuLabel || module.name}
-                                </button>
-                              ))}
-                            {(state.customModules || []).filter(
-                              (module) =>
-                                module.enabled !== false &&
-                                !(
-                                  pet.modulePlugins?.boundModuleIds || []
-                                ).includes(module.id)
-                            ).length === 0 && (
-                              <span className="empty-copy">
-                                没有可添加的模组。
-                              </span>
-                            )}
-                          </div>
-                        )}
                       </div>
                       <span className="module-plugin-kind">右键菜单</span>
                     </div>
