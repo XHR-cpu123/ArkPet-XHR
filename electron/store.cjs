@@ -12,7 +12,7 @@ function createDefaultState() {
   const petId = id("pet");
 
   return {
-    version: 15,
+    version: 16,
     activePetId: petId,
     summonedPetIds: [petId],
     activeView: "home",
@@ -275,6 +275,63 @@ function mergeDeep(base, patch) {
   return result;
 }
 
+function createPetVitals(pet, { active = false, wellbeing = {}, character = {} } = {}) {
+  const now = new Date().toISOString();
+  const number = (value, fallback) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+  const limit = (value, min, max) => Math.min(max, Math.max(min, value));
+  return {
+    energy: limit(
+      active
+        ? number(wellbeing.energy, number(character.energy, 76))
+        : number(character.energy, 76),
+      0,
+      100
+    ),
+    initiative: limit(
+      active
+        ? number(wellbeing.initiative, number(character.initiative, 58))
+        : number(character.initiative, 58),
+      0,
+      100
+    ),
+    relationship: limit(
+      number(
+        pet.desktopRelationship,
+        active ? number(wellbeing.relationship, 12) : 12
+      ),
+      0,
+      100
+    ),
+    mood: String((active ? wellbeing.mood : "") || character.mood || "平静"),
+    moodScore: limit(number(wellbeing.moodScore, 61), 0, 100),
+    secondsToday: Math.max(0, number(pet.desktopSecondsToday, 0)),
+    secondsTotal: Math.max(0, number(pet.desktopSecondsTotal, 0)),
+    todayKey: String(pet.desktopDayKey || now.slice(0, 10)),
+    lastSimulatedAt: now,
+    lastInteractionAt: String(
+      (active ? wellbeing.lastInteractionAt : "") || now
+    ),
+    lastPetAt: String(
+      (active ? wellbeing.lastPetAt : "") ||
+        new Date(Date.now() - 30 * 60 * 1000).toISOString()
+    ),
+    today: {
+      energyDelta: 0,
+      initiativeDelta: 0,
+      relationshipDelta: 0,
+      interactions: 0,
+      petCount: 0
+    },
+    recentEvents:
+      active && Array.isArray(wellbeing.recentEvents)
+        ? wellbeing.recentEvents.slice(0, 40)
+        : []
+  };
+}
+
 function ensureShape(raw) {
   const defaults = createDefaultState();
   const hadWellbeing = isObject(raw?.wellbeing);
@@ -384,6 +441,10 @@ function ensureShape(raw) {
       climbModule.climbHeightDecay = 0.8;
     }
     merged.version = 15;
+  }
+  if (Number(merged.version || 1) < 16) {
+    // 版本 16：状态按桌宠独立存储（pet.vitals），模块自己的数值存进 pet.moduleState。
+    merged.version = 16;
   }
   for (const pet of Array.isArray(merged.pets) ? merged.pets : []) {
     if (!isObject(pet.renderConfig)) continue;
@@ -616,6 +677,106 @@ function ensureShape(raw) {
       module.assistantBubbleImageUrl || ""
     );
     module.decorationImageUrl = String(module.decorationImageUrl || "");
+  }
+
+  const hungerModule = merged.customModules.find(
+    (module) =>
+      module.id === "builtin-hunger-food" ||
+      module.builtinType === "hunger-food"
+  );
+  for (const module of merged.customModules) {
+    if (module === hungerModule) {
+      module.metrics = [
+        {
+          key: "hunger",
+          label: "饥饿值",
+          unit: "%",
+          min: 0,
+          max: 100,
+          tone: "orange",
+          decayPerMinute: Math.max(0, Number(module.hungerDecayPerMinute ?? 1)),
+          warnBelow: 30
+        }
+      ];
+      continue;
+    }
+    module.metrics = Array.isArray(module.metrics)
+      ? module.metrics
+          .filter(
+            (metric) =>
+              isObject(metric) &&
+              typeof metric.key === "string" &&
+              typeof metric.label === "string"
+          )
+          .map((metric) => ({
+            key: String(metric.key),
+            label: String(metric.label),
+            unit: metric.unit === undefined ? undefined : String(metric.unit),
+            min: Number.isFinite(Number(metric.min)) ? Number(metric.min) : 0,
+            max: Number.isFinite(Number(metric.max)) ? Number(metric.max) : 100,
+            tone: ["blue", "orange", "green"].includes(metric.tone)
+              ? metric.tone
+              : "blue",
+            decayPerMinute: Math.max(0, Number(metric.decayPerMinute || 0)),
+            warnBelow: Number.isFinite(Number(metric.warnBelow))
+              ? Number(metric.warnBelow)
+              : undefined
+          }))
+      : [];
+  }
+  for (const pet of Array.isArray(merged.pets) ? merged.pets : []) {
+    if (!isObject(pet.vitals)) {
+      pet.vitals = createPetVitals(pet, {
+        active: pet.id === merged.activePetId,
+        wellbeing: isObject(merged.wellbeing) ? merged.wellbeing : {},
+        character: isObject(merged.character) ? merged.character : {}
+      });
+    }
+    pet.vitals.today = {
+      energyDelta: 0,
+      initiativeDelta: 0,
+      relationshipDelta: 0,
+      interactions: 0,
+      petCount: 0,
+      ...(isObject(pet.vitals.today) ? pet.vitals.today : {})
+    };
+    pet.vitals.recentEvents = Array.isArray(pet.vitals.recentEvents)
+      ? pet.vitals.recentEvents.slice(0, 40)
+      : [];
+    if (!isObject(pet.moduleState)) pet.moduleState = {};
+    if (hungerModule) {
+      const moduleState = isObject(pet.moduleState[hungerModule.id])
+        ? pet.moduleState[hungerModule.id]
+        : {};
+      if (!Number.isFinite(Number(moduleState.hunger))) {
+        moduleState.hunger = Math.max(
+          0,
+          Math.min(100, Number(pet.hunger ?? 100))
+        );
+      }
+      pet.moduleState[hungerModule.id] = moduleState;
+    }
+    const voiceLines = isObject(pet.voiceLines) ? pet.voiceLines : {};
+    pet.voiceLines = {
+      enabled: voiceLines.enabled !== false,
+      intervalSeconds: Math.max(5, Number(voiceLines.intervalSeconds || 60)),
+      probability: Math.max(
+        0,
+        Math.min(100, Number(voiceLines.probability ?? 60))
+      ),
+      clips: (Array.isArray(voiceLines.clips) ? voiceLines.clips : [])
+        .filter(
+          (clip) => isObject(clip) && clip.id && (clip.url || clip.relativePath)
+        )
+        .map((clip) => ({
+          id: String(clip.id),
+          name: String(clip.name || "角色语音"),
+          relativePath: String(clip.relativePath || ""),
+          url: String(clip.url || ""),
+          size: Number(clip.size || 0),
+          createdAt: String(clip.createdAt || new Date().toISOString())
+        }))
+    };
   }
   const usableDialogModules = merged.customModules.filter(
     (item) => item.kind === "dialog-box" && item.enabled !== false

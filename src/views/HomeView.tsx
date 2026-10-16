@@ -17,15 +17,12 @@ import { useEffect, useRef, useState } from "react";
 import { PetAvatar } from "../components/PetAvatar";
 import { SpinePet } from "../components/SpinePet";
 import { formatTime } from "../lib/format";
-import {
-  addPetRelationship,
-  ensurePetCompanionState
-} from "../lib/petCompanion";
+import { hasDialogueModule, listPetMetrics } from "../lib/moduleMetrics";
+import { ensurePetVitals } from "../lib/petVitals";
 import { useAppState } from "../state";
 import type { PetProfile } from "../types";
 import {
   appendWellbeingEvent,
-  ensureWellbeing,
   recordWellbeingInteraction,
   relationshipStage
 } from "../lib/wellbeing";
@@ -81,6 +78,8 @@ function PetHero({
   initiative,
   relationship,
   mood,
+  secondsToday,
+  secondsTotal,
   active
 }: {
   pet: PetProfile;
@@ -88,9 +87,10 @@ function PetHero({
   initiative: number;
   relationship: number;
   mood: string;
+  secondsToday: number;
+  secondsTotal: number;
   active: boolean;
 }) {
-  const companion = ensurePetCompanionState(pet);
   return (
     <article className="hero-page">
       <div className="hero-copy">
@@ -103,10 +103,8 @@ function PetHero({
           <span>关系：{relationshipStage(relationship)}</span>
         </div>
         <div className="desktop-companion-line">
-          今天在桌面陪伴了{" "}
-          <strong>{formatDuration(companion.desktopSecondsToday || 0)}</strong>
-          ，累计{" "}
-          <strong>{formatDuration(companion.desktopSecondsTotal || 0)}</strong>
+          今天在桌面陪伴了 <strong>{formatDuration(secondsToday)}</strong>
+          ，累计 <strong>{formatDuration(secondsTotal)}</strong>
         </div>
         <div className="character-meters">
           <Meter label="精力" value={energy} tone="green" />
@@ -181,27 +179,27 @@ export function HomeView() {
 
   const stateSnapshot = currentState;
   const pet = availablePets[petPage] || availablePets[0];
-  const petCompanionState = ensurePetCompanionState(pet);
-  const relationship = Number(petCompanionState.desktopRelationship ?? 12);
-  const wellbeing = ensureWellbeing(
-    currentState.wellbeing,
-    currentState.character
-  );
+  const vitals = ensurePetVitals(pet, currentState.character);
+  const relationship = Number(vitals.relationship ?? 12);
   const minutesSinceInteraction = Math.max(
     0,
-    (Date.now() - new Date(wellbeing.lastInteractionAt).getTime()) / 60000
+    (Date.now() - new Date(vitals.lastInteractionAt).getTime()) / 60000
   );
   const nextRelationshipStage = relationshipTarget(relationship);
+  const petMetrics = listPetMetrics(pet, currentState.customModules);
+  const canDialogue = hasDialogueModule(pet);
   const timeline: TimelineItem[] = [
     {
-      id: `desktop-${pet.id}-${petCompanionState.desktopDayKey || ""}`,
+      id: `desktop-${pet.id}-${vitals.todayKey || ""}`,
       text: `${pet.name} 今天在桌面上陪伴了 ${formatDuration(
-        petCompanionState.desktopSecondsToday || 0
+        vitals.secondsToday || 0
       )}，关系提升到 ${relationship.toFixed(1)}。`,
       createdAt: new Date().toISOString()
     },
-    ...wellbeing.recentEvents,
-    ...currentState.activity
+    ...vitals.recentEvents,
+    ...currentState.activity.filter(
+      (item) => !item.petId || item.petId === pet.id
+    )
   ]
     .sort(
       (left, right) =>
@@ -222,25 +220,21 @@ export function HomeView() {
   async function petCompanion() {
     const now = Date.now();
     const next = recordWellbeingInteraction(
-      wellbeing,
+      vitals,
       stateSnapshot.character,
       "pet",
       now
     );
-    if (next.lastPetAt !== wellbeing.lastPetAt) {
-      await updateState({
-        activePetId: pet.id,
-        pets: stateSnapshot.pets.map((item) =>
-          item.id === pet.id ? addPetRelationship(item, 0.5, now) : item
-        ),
-        wellbeing: appendWellbeingEvent(
-          next,
-          "pet",
-          `你摸了摸 ${pet.name}，关系和主动性有小幅提升。`,
-          now
-        )
-      });
-    }
+    if (next.lastPetAt === vitals.lastPetAt) return;
+    await window.deskPet.applyPetPatch(pet.id, {
+      vitals: appendWellbeingEvent(
+        next,
+        "pet",
+        `你摸了摸 ${pet.name}，关系和主动性有小幅提升。`,
+        now
+      )
+    });
+    await updateState({ activePetId: pet.id });
   }
 
   return (
@@ -277,15 +271,17 @@ export function HomeView() {
             style={{ transform: `translateX(-${petPage * 100}%)` }}
           >
             {availablePets.map((item) => {
-              const statistics = ensurePetCompanionState(item);
+              const itemVitals = ensurePetVitals(item, currentState.character);
               return (
                 <PetHero
                   key={item.id}
                   pet={item}
-                  energy={wellbeing.energy}
-                  initiative={wellbeing.initiative}
-                  relationship={Number(statistics.desktopRelationship ?? 12)}
-                  mood={wellbeing.mood}
+                  energy={itemVitals.energy}
+                  initiative={itemVitals.initiative}
+                  relationship={Number(itemVitals.relationship ?? 12)}
+                  mood={itemVitals.mood}
+                  secondsToday={Number(itemVitals.secondsToday || 0)}
+                  secondsTotal={Number(itemVitals.secondsTotal || 0)}
                   active={item.id === pet.id}
                 />
               );
@@ -325,15 +321,26 @@ export function HomeView() {
           <Hand size={16} />
           摸摸 {pet.name}
         </button>
-        <button
-          type="button"
-          onClick={() =>
-            updateState({ activePetId: pet.id, activeView: "training" })
-          }
-        >
-          <MessageCircle size={16} />
-          聊一会儿
-        </button>
+        {canDialogue ? (
+          <button
+            type="button"
+            onClick={() =>
+              updateState({ activePetId: pet.id, activeView: "training" })
+            }
+          >
+            <MessageCircle size={16} />
+            聊一会儿
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled
+            title="这只桌宠还没有装配对话模块。去「桌宠唤醒 → 模组插件」绑定 AI 模块后即可对话。"
+          >
+            <MessageCircle size={16} />
+            未装配对话模块
+          </button>
+        )}
         <button
           type="button"
           onClick={() =>
@@ -354,18 +361,18 @@ export function HomeView() {
           <div className="stat-stack">
             <div>
               <strong>
-                {formatDuration(petCompanionState.desktopSecondsToday || 0)}
+                {formatDuration(vitals.secondsToday || 0)}
               </strong>
               <span>今日桌面时长</span>
             </div>
             <div>
               <strong>
-                {formatDuration(petCompanionState.desktopSecondsTotal || 0)}
+                {formatDuration(vitals.secondsTotal || 0)}
               </strong>
               <span>累计桌面时长</span>
             </div>
             <div>
-              <strong>{Math.round(wellbeing.energy)}</strong>
+              <strong>{Math.round(vitals.energy)}</strong>
               <span>当前精力</span>
             </div>
           </div>
@@ -376,9 +383,9 @@ export function HomeView() {
             <TrendingUp size={18} />
             <h3>心情与主动性</h3>
           </div>
-          <strong className="status-value">{wellbeing.mood}</strong>
+          <strong className="status-value">{vitals.mood}</strong>
           <p>
-            主动性 {Math.round(wellbeing.initiative)}。
+            主动性 {Math.round(vitals.initiative)}。
             {minutesSinceInteraction < 15
               ? "最近刚互动过，它更愿意做出反应。"
               : "已经有一段时间没互动，它会逐渐安静下来。"}
@@ -399,6 +406,32 @@ export function HomeView() {
             桌面陪伴时间越长，关系会持续提升。
           </p>
         </article>
+
+        {petMetrics.length > 0 && (
+          <article className="info-panel">
+            <div className="panel-heading">
+              <Activity size={18} />
+              <h3>模块属性</h3>
+            </div>
+            <div className="character-meters">
+              {petMetrics.map((item) => (
+                <Meter
+                  key={`${item.moduleId}:${item.metric.key}`}
+                  label={item.metric.label}
+                  value={item.value}
+                  tone={item.metric.tone || "blue"}
+                />
+              ))}
+            </div>
+            <p>
+              由已装配的模组提供：
+              {Array.from(
+                new Set(petMetrics.map((item) => item.moduleName))
+              ).join("、")}
+              。没有装配对应模组时，这里不会出现该属性。
+            </p>
+          </article>
+        )}
 
         <article className="info-panel service-panel">
           <div className="panel-heading">

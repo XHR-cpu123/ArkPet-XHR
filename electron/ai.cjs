@@ -213,8 +213,8 @@ function sanitizeCharacterReply(rawText) {
 
 function buildSystemPrompt(state) {
   const character = state.character || {};
-  const wellbeing = state.wellbeing || {};
   const pet = activePet(state);
+  const wellbeing = pet?.vitals || state.wellbeing || {};
   const pluginAiId =
     pet.modulePlugins?.aiModuleId ||
     (pet.modulePlugins?.custom?.source === "ai"

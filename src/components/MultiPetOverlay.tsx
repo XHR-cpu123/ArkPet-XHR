@@ -12,7 +12,8 @@ import { makeId } from "../lib/id";
 import { getVisualSize } from "../lib/renderConfig";
 import { chooseBoundAnimation } from "../lib/spineActions";
 import { resolveDialogModule } from "../lib/dialogModules";
-import { trackPetDesktopTime } from "../lib/petCompanion";
+import { decayModuleMetrics, readModuleMetric } from "../lib/moduleMetrics";
+import { advancePetVitals, ensurePetVitals } from "../lib/petVitals";
 import type {
   AppSettings,
   AppState,
@@ -138,89 +139,74 @@ function shouldIgnoreOverlayMouse(
   return !(hit || anyMenuOpen || interactive);
 }
 
-function withDecayedHunger(state: AppState, now = Date.now()) {
-  const hungerModule = state.customModules.find(
-    (module) => module.builtinType === "hunger-food"
-  );
-  const decayPerMinute = Math.max(
-    0,
-    Number(hungerModule?.hungerDecayPerMinute ?? 1)
-  );
+function withModuleMetrics(state: AppState, now = Date.now()) {
   let changed = false;
   const pets = state.pets.map((pet) => {
-    if (
-      hungerModule?.enabled === false ||
-      !(pet.modulePlugins?.boundModuleIds || []).includes(
-        hungerModule?.id || ""
-      )
-    ) {
-      return pet;
-    }
-    const lastUpdated = new Date(
-      pet.hungerUpdatedAt || pet.createdAt || now
+    const sampleAt = new Date(
+      pet.vitals?.lastSimulatedAt || pet.updatedAt || pet.createdAt || now
     ).getTime();
-    const elapsedMinutes = Number.isFinite(lastUpdated)
-      ? Math.max(0, (now - lastUpdated) / 60000)
+    const elapsedMinutes = Number.isFinite(sampleAt)
+      ? Math.max(0, (now - sampleAt) / 60000)
       : 0;
-    if (elapsedMinutes < 0.05 || decayPerMinute <= 0) return pet;
+    if (elapsedMinutes < 0.05) return pet;
+    const { moduleState, changed: metricsChanged } = decayModuleMetrics(
+      pet,
+      state.customModules,
+      Math.min(elapsedMinutes, 120)
+    );
+    if (!metricsChanged) return pet;
     changed = true;
-    return {
-      ...pet,
-      hunger: clamp(
-        Number(pet.hunger ?? 100) - elapsedMinutes * decayPerMinute,
-        0,
-        100
-      ),
-      hungerUpdatedAt: new Date(now).toISOString()
-    };
+    return { ...pet, moduleState };
   });
   return changed ? { ...state, pets } : state;
 }
 
-function withDesktopCompanionTime(state: AppState, now = Date.now()) {
+function withPetVitals(state: AppState, now = Date.now()) {
   const summoned = new Set(state.summonedPetIds);
   let changed = false;
   const pets = state.pets.map((pet) => {
-    const next = trackPetDesktopTime(pet, summoned.has(pet.id), now);
+    const current = ensurePetVitals(pet, state.character);
+    const next = advancePetVitals(
+      current,
+      state.character,
+      summoned.has(pet.id),
+      now
+    );
     if (
-      next.desktopSecondsToday !== pet.desktopSecondsToday ||
-      next.desktopSecondsTotal !== pet.desktopSecondsTotal ||
-      next.desktopRelationship !== pet.desktopRelationship ||
-      next.desktopSampleAt !== pet.desktopSampleAt
+      next.energy === current.energy &&
+      next.initiative === current.initiative &&
+      next.relationship === current.relationship &&
+      next.mood === current.mood &&
+      next.moodScore === current.moodScore &&
+      next.secondsToday === current.secondsToday &&
+      next.secondsTotal === current.secondsTotal &&
+      next.lastSimulatedAt === current.lastSimulatedAt &&
+      next.todayKey === current.todayKey
     ) {
-      changed = true;
+      return pet;
     }
-    return next;
+    changed = true;
+    return { ...pet, vitals: next };
   });
-  const nextState = changed
-    ? {
-        ...state,
-        pets
-      }
-    : state;
-  const activePet = pets.find((pet) => pet.id === state.activePetId);
-  if (
-    activePet &&
-    Number.isFinite(activePet.desktopRelationship) &&
-    Math.abs(
-      Number(activePet.desktopRelationship) -
-        Number(state.wellbeing?.relationship || 0)
-    ) > 0.001
-  ) {
-    return {
-      ...nextState,
-      wellbeing: {
-        ...state.wellbeing,
-        relationship: Number(activePet.desktopRelationship),
-        lastSimulatedAt: new Date(now).toISOString()
-      }
-    };
-  }
-  return nextState;
+  return changed ? { ...state, pets } : state;
 }
 
 function withOverlayStats(state: AppState, now = Date.now()) {
-  return withDesktopCompanionTime(withDecayedHunger(state, now), now);
+  return withPetVitals(withModuleMetrics(state, now), now);
+}
+
+function persistPetChanges(previous: AppState, next: AppState) {
+  for (const pet of next.pets) {
+    const before = previous.pets.find((item) => item.id === pet.id);
+    if (!before) continue;
+    const vitalsChanged = before.vitals !== pet.vitals;
+    const moduleStateChanged = before.moduleState !== pet.moduleState;
+    if (!vitalsChanged && !moduleStateChanged) continue;
+    void window.deskPet.applyPetPatch(pet.id, {
+      ...(vitalsChanged ? { vitals: pet.vitals } : {}),
+      ...(moduleStateChanged ? { moduleState: pet.moduleState } : {})
+    });
+  }
 }
 
 function buildSupportSurfaces(icons: DesktopIconRect[]) {
@@ -295,7 +281,7 @@ export function MultiPetOverlay() {
       setAppState(nextState);
       setOverlaySettings(nextState.settings.overlay);
       if (nextState !== state) {
-        void window.deskPet.updateState({ pets: nextState.pets });
+        persistPetChanges(state, nextState);
       }
     });
     window.deskPet.getDisplayMetrics().then((nextMetrics) => {
@@ -336,7 +322,7 @@ export function MultiPetOverlay() {
       if (nextState === state) return;
       appStateRef.current = nextState;
       setAppState(nextState);
-      void window.deskPet.updateState({ pets: nextState.pets });
+      persistPetChanges(state, nextState);
     }, 60000);
     return () => window.clearInterval(timer);
   }, []);
@@ -368,19 +354,14 @@ export function MultiPetOverlay() {
           current.filter((icon) => icon.foodPath !== payload.filePath)
         );
       }
-      void window.deskPet.getState().then((state) =>
-        window.deskPet.updateState({
-          pets: state.pets.map((pet) =>
-            pet.id === payload.petId
-              ? {
-                  ...pet,
-                  hunger: 100,
-                  hungerUpdatedAt: new Date().toISOString()
-                }
-              : pet
-          )
-        })
-      );
+      const hungerModuleId =
+        appStateRef.current?.customModules.find(
+          (module) => module.builtinType === "hunger-food"
+        )?.id || "";
+      if (!hungerModuleId) return;
+      void window.deskPet.applyPetPatch(payload.petId, {
+        moduleState: { [hungerModuleId]: { hunger: 100 } }
+      });
     });
     return unsubscribe;
   }, []);
@@ -517,6 +498,10 @@ function MultiPetEntity({
   const voiceRecorderRef = useRef<MediaRecorder | null>(null);
   const voiceChunksRef = useRef<Blob[]>([]);
   const voiceSessionRef = useRef(0);
+  const nextVoiceLineAtRef = useRef(0);
+  const voicePhaseRef = useRef<
+    "idle" | "recording" | "transcribing" | "thinking" | "speaking"
+  >("idle");
   const foodTargetIdRef = useRef("");
   const nextFoodSeekAtRef = useRef(0);
   const eatingFoodRef = useRef(false);
@@ -565,7 +550,14 @@ function MultiPetEntity({
   const hungerModule = boundModules.find(
     (module) => module.builtinType === "hunger-food"
   );
-  const hunger = clamp(Number(pet.hunger ?? 100), 0, 100);
+  const hungerMetric = hungerModule?.metrics?.find(
+    (metric) => metric.key === "hunger"
+  );
+  const hunger =
+    hungerModule && hungerMetric
+      ? readModuleMetric(pet, hungerModule.id, hungerMetric)
+      : 100;
+  const hungerWarning = Number(hungerMetric?.warnBelow ?? 30);
   const foodTargets = useMemo(
     () => desktopIcons.filter((icon) => Boolean(icon.foodPath)),
     [desktopIcons]
@@ -885,17 +877,9 @@ function MultiPetEntity({
       if (!result.ok) return;
       foodTargetIdRef.current = "";
       onFoodConsumed(target.foodPath);
-      const state = await window.deskPet.getState();
-      await window.deskPet.updateState({
-        pets: state.pets.map((item) =>
-          item.id === pet.id
-            ? {
-                ...item,
-                hunger: 100,
-                hungerUpdatedAt: new Date().toISOString()
-              }
-            : item
-        )
+      if (!hungerModule) return;
+      await window.deskPet.applyPetPatch(pet.id, {
+        moduleState: { [hungerModule.id]: { hunger: 100 } }
       });
     } finally {
       eatingFoodRef.current = false;
@@ -1698,6 +1682,35 @@ function MultiPetEntity({
   }, []);
 
   useEffect(() => {
+    voicePhaseRef.current = voicePhase;
+  }, [voicePhase]);
+
+  useEffect(() => {
+    const lines = pet.voiceLines;
+    if (!lines?.enabled || !lines.clips?.length) return;
+    const intervalMs =
+      Math.max(5, Number(lines.intervalSeconds || 60)) * 1000;
+    const probability = Math.max(
+      0,
+      Math.min(100, Number(lines.probability ?? 60))
+    );
+    if (!nextVoiceLineAtRef.current) {
+      nextVoiceLineAtRef.current = performance.now() + intervalMs;
+    }
+    const timer = window.setInterval(() => {
+      if (physics.current.dragging) return;
+      if (voicePhaseRef.current !== "idle") return;
+      const now = performance.now();
+      if (now < nextVoiceLineAtRef.current) return;
+      nextVoiceLineAtRef.current = now + intervalMs;
+      if (Math.random() * 100 >= probability) return;
+      const clip = lines.clips[Math.floor(Math.random() * lines.clips.length)];
+      if (clip?.url) setVoiceAudioSrc(clip.url);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [pet.voiceLines]);
+
+  useEffect(() => {
     const unsubscribe = window.deskPet.onOverlayCommand((command) => {
       const commandPetId = "petId" in command ? command.petId : undefined;
       if (commandPetId && commandPetId !== pet.id) return;
@@ -2094,7 +2107,7 @@ function MultiPetEntity({
         </div>
       ) : (
         hungerModule &&
-        hunger < 30 && <div className="pet-hunger-bubble">饿……</div>
+        hunger < hungerWarning && <div className="pet-hunger-bubble">饿……</div>
       )}
       {voicePhase !== "idle" && (
         <div className="pet-voice-indicator">

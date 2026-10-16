@@ -21,9 +21,9 @@ import { ModelManagerView } from "../components/ModelManagerView";
 import { VoiceModuleView } from "../components/VoiceModuleView";
 import {
   appendWellbeingEvent,
-  ensureWellbeing,
   recordWellbeingInteraction
 } from "../lib/wellbeing";
+import { ensurePetVitals } from "../lib/petVitals";
 import { useAppState } from "../state";
 import type {
   AppSettings,
@@ -464,21 +464,26 @@ export function TrainingView() {
       const completed = [...nextMessages, completedAssistant];
       setMessages(completed);
       const interactionTime = Date.now();
-      const currentWellbeing = ensureWellbeing(
-        currentState.wellbeing,
-        profileCharacter
-      );
-      const nextWellbeing = appendWellbeingEvent(
-        recordWellbeingInteraction(
-          currentWellbeing,
-          profileCharacter,
+      const chatPet =
+        currentState.pets.find(
+          (item) => item.id === currentState.activePetId
+        ) || currentState.pets[0];
+      if (chatPet) {
+        const nextVitals = appendWellbeingEvent(
+          recordWellbeingInteraction(
+            ensurePetVitals(chatPet, profileCharacter),
+            profileCharacter,
+            "chat",
+            interactionTime
+          ),
           "chat",
+          "完成了一次角色对话，关系与主动性有所提升。",
           interactionTime
-        ),
-        "chat",
-        "完成了一次角色对话，关系与主动性有所提升。",
-        interactionTime
-      );
+        );
+        await window.deskPet.applyPetPatch(chatPet.id, {
+          vitals: nextVitals
+        });
+      }
       await updateState({
         conversations: [
           ...currentState.conversations,
@@ -488,8 +493,7 @@ export function TrainingView() {
         stats: {
           ...currentState.stats,
           chatCount: currentState.stats.chatCount + 1
-        },
-        wellbeing: nextWellbeing
+        }
       });
     } finally {
       unsubscribe();

@@ -1,5 +1,6 @@
 import { Color, SkeletonBinary } from "@pixi-spine/all-3.8";
 import {
+  AudioLines,
   Bot,
   CheckCircle2,
   File,
@@ -40,6 +41,8 @@ import type {
   PetModulePlugins,
   PetProfile,
   PetRenderConfig,
+  PetVoiceClip,
+  PetVoiceLines,
   SpinePartKind,
   SpineStagedPart
 } from "../types";
@@ -57,6 +60,14 @@ const advancedResizeEdges: AdvancedResizeEdge[] = [
   "se",
   "sw"
 ];
+
+function formatVoiceInterval(seconds: number) {
+  const total = Math.max(0, Math.round(Number(seconds) || 0));
+  if (total < 60) return `${total} 秒`;
+  const minutes = Math.floor(total / 60);
+  const rest = total % 60;
+  return rest ? `${minutes} 分 ${rest} 秒` : `${minutes} 分钟`;
+}
 
 const spineSlots: Array<{
   kind: SpinePartKind;
@@ -91,6 +102,7 @@ export function WorkshopView() {
     useState<ActionDiagnostics | null>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const [modulePickerOpen, setModulePickerOpen] = useState(false);
+  const [voiceLineAudioUrl, setVoiceLineAudioUrl] = useState("");
   const stageRef = useRef<HTMLDivElement | null>(null);
   const stateRef = useRef<AppState | null>(null);
   const petRef = useRef<PetProfile | null>(null);
@@ -250,6 +262,31 @@ export function WorkshopView() {
     saveModulePlugin({
       custom: itemId ? { source, itemId } : undefined
     });
+  }
+
+  const voiceLines: PetVoiceLines = pet.voiceLines || {
+    enabled: true,
+    intervalSeconds: 60,
+    probability: 60,
+    clips: []
+  };
+
+  async function saveVoiceLines(patch: Partial<PetVoiceLines>) {
+    await savePet({
+      ...pet,
+      voiceLines: { ...voiceLines, ...patch }
+    });
+  }
+
+  async function importVoiceLines() {
+    const result = await window.deskPet.importVoiceLines(pet.id);
+    if (result.canceled) return;
+    await refresh();
+  }
+
+  function previewVoiceLine(clip: PetVoiceClip) {
+    if (!clip.url) return;
+    setVoiceLineAudioUrl(clip.url);
   }
 
   async function deletePet() {
@@ -1383,6 +1420,102 @@ export function WorkshopView() {
                   </div>
                 ))}
               </div>
+            </div>
+
+            <div className="action-preset-panel">
+              <div className="panel-heading">
+                <AudioLines size={17} />
+                <h3>角色语音</h3>
+              </div>
+              <p className="voice-line-hint">
+                导入 WAV 音频后，桌宠在桌面上会按下面的间隔随机说话：时间到了也有概率说、有概率不说。
+              </p>
+              <label className="voice-line-toggle">
+                <span>启用角色语音</span>
+                <input
+                  type="checkbox"
+                  checked={voiceLines.enabled}
+                  onChange={(event) =>
+                    void saveVoiceLines({ enabled: event.target.checked })
+                  }
+                />
+              </label>
+              <label className="range-field">
+                <span>播放间隔</span>
+                <input
+                  type="range"
+                  min="10"
+                  max="900"
+                  step="10"
+                  value={voiceLines.intervalSeconds}
+                  onChange={(event) =>
+                    void saveVoiceLines({
+                      intervalSeconds: Number(event.target.value)
+                    })
+                  }
+                />
+                <strong>
+                  {formatVoiceInterval(voiceLines.intervalSeconds)}
+                </strong>
+              </label>
+              <label className="range-field">
+                <span>播放概率</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={voiceLines.probability}
+                  onChange={(event) =>
+                    void saveVoiceLines({
+                      probability: Number(event.target.value)
+                    })
+                  }
+                />
+                <strong>{voiceLines.probability}%</strong>
+              </label>
+              <div className="voice-line-list">
+                {voiceLines.clips.map((clip) => (
+                  <div className="voice-line-row" key={clip.id}>
+                    <span title={clip.name}>{clip.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => previewVoiceLine(clip)}
+                    >
+                      播放
+                    </button>
+                    <button
+                      type="button"
+                      title="删除这段语音"
+                      onClick={() =>
+                        void window.deskPet
+                          .removeVoiceLine(pet.id, clip.id)
+                          .then(() => refresh())
+                      }
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+                {voiceLines.clips.length === 0 && (
+                  <p className="empty-copy">还没有导入角色语音。</p>
+                )}
+              </div>
+              <button
+                className="wide-secondary"
+                type="button"
+                onClick={() => void importVoiceLines()}
+              >
+                <Upload size={16} />
+                导入 WAV 语音
+              </button>
+              {voiceLineAudioUrl && (
+                <audio
+                  src={voiceLineAudioUrl}
+                  autoPlay
+                  onEnded={() => setVoiceLineAudioUrl("")}
+                />
+              )}
             </div>
           </>
         ) : (

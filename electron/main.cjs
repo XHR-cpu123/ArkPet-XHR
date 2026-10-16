@@ -274,11 +274,12 @@ function stopOwnedVoiceService() {
   ownsVoiceService = false;
 }
 
-function appendActivity(draft, type, text) {
+function appendActivity(draft, type, text, petId = "") {
   draft.activity.unshift({
     id: id("activity"),
     type,
     text,
+    petId,
     createdAt: new Date().toISOString()
   });
   draft.activity = draft.activity.slice(0, 60);
@@ -481,20 +482,20 @@ function sendOverlayCommand(command) {
         new Set([...draft.summonedPetIds, petId])
       );
       draft.stats.releaseCount += 1;
-      appendActivity(draft, "wake", "桌宠从管理窗口释放到桌面。");
+      appendActivity(draft, "wake", "桌宠从管理窗口释放到桌面。", petId);
     } else if (command.type === "wake") {
       draft.summonedPetIds = Array.from(
         new Set([...draft.summonedPetIds, petId])
       );
       draft.stats.wakeCount += 1;
-      appendActivity(draft, "wake", "桌宠被唤醒。");
+      appendActivity(draft, "wake", "桌宠被唤醒。", petId);
     } else if (command.type === "sleep") {
       draft.summonedPetIds = draft.summonedPetIds.filter(
         (id) => id !== petId
       );
-      appendActivity(draft, "rest", "桌宠开始放松并进入休眠。");
+      appendActivity(draft, "rest", "桌宠开始放松并进入休眠。", petId);
     } else if (command.type === "rest") {
-      appendActivity(draft, "rest", "桌宠在桌面上进入休眠。");
+      appendActivity(draft, "rest", "桌宠在桌面上进入休眠。", petId);
     }
   });
   broadcastState();
@@ -646,6 +647,15 @@ function readExternalModuleManifest(folderPath) {
       ),
       fontFamily: String(manifest.fontFamily || "Microsoft YaHei UI"),
       customCss: String(manifest.customCss || ""),
+      metrics: Array.isArray(manifest.metrics)
+        ? manifest.metrics.filter(
+            (metric) =>
+              metric &&
+              typeof metric === "object" &&
+              typeof metric.key === "string" &&
+              typeof metric.label === "string"
+          )
+        : [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
@@ -879,6 +889,10 @@ function safeFileName(value) {
     .replace(/[<>:"/\\|?*\u0000-\u001f]/g, "-")
     .replace(/\s+/g, "-")
     .slice(0, 80);
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 function assetUrl(relativePath) {
@@ -1762,6 +1776,29 @@ function registerIpc() {
     applyOverlaySettings();
     return state;
   });
+  ipcMain.handle("pets:apply", (_event, petId, patch) => {
+    const state = store.mutate((draft) => {
+      const pet = draft.pets.find((item) => item.id === petId);
+      if (!pet) return;
+      if (isPlainObject(patch?.vitals)) {
+        pet.vitals = { ...(pet.vitals || {}), ...patch.vitals };
+      }
+      if (isPlainObject(patch?.moduleState)) {
+        const nextModuleState = { ...(pet.moduleState || {}) };
+        for (const [moduleId, values] of Object.entries(patch.moduleState)) {
+          if (!isPlainObject(values)) continue;
+          nextModuleState[moduleId] = {
+            ...(nextModuleState[moduleId] || {}),
+            ...values
+          };
+        }
+        pet.moduleState = nextModuleState;
+      }
+      pet.updatedAt = new Date().toISOString();
+    });
+    broadcastState();
+    return state;
+  });
 
   ipcMain.handle("display:get-metrics", () => getPrimaryMetrics());
   ipcMain.handle("desktop:get-icons", () => getDesktopIcons());
@@ -2161,6 +2198,70 @@ function registerIpc() {
     });
     broadcastState();
     return { canceled: false, samples, state };
+  });
+
+  ipcMain.handle("voice-lines:import", async (_event, petId) => {
+    const result = await dialog.showOpenDialog(controlWindow, {
+      title: "导入角色语音（WAV）",
+      properties: ["openFile", "multiSelections"],
+      filters: [{ name: "WAV 音频", extensions: ["wav"] }]
+    });
+    if (result.canceled) return { canceled: true };
+    const clips = result.filePaths.map((filePath) =>
+      copyIntoAssets(
+        filePath,
+        path.join("voice-lines", safeFileName(petId || "pet"))
+      )
+    );
+    const state = store.mutate((draft) => {
+      const pet = draft.pets.find((item) => item.id === petId);
+      if (!pet) throw new Error("没有找到要导入语音的桌宠。");
+      const current = isPlainObject(pet.voiceLines) ? pet.voiceLines : {};
+      pet.voiceLines = {
+        enabled: current.enabled !== false,
+        intervalSeconds: Math.max(5, Number(current.intervalSeconds || 60)),
+        probability: Math.max(
+          0,
+          Math.min(100, Number(current.probability ?? 60))
+        ),
+        clips: [
+          ...(Array.isArray(current.clips) ? current.clips : []),
+          ...clips
+        ]
+      };
+      appendActivity(
+        draft,
+        "voice",
+        `导入了 ${clips.length} 段角色语音。`,
+        petId
+      );
+    });
+    broadcastState();
+    return { canceled: false, clips, state };
+  });
+
+  ipcMain.handle("voice-lines:remove", (_event, petId, clipId) => {
+    const state = store.mutate((draft) => {
+      const pet = draft.pets.find((item) => item.id === petId);
+      if (!pet || !isPlainObject(pet.voiceLines)) return;
+      const clips = Array.isArray(pet.voiceLines.clips)
+        ? pet.voiceLines.clips
+        : [];
+      const clip = clips.find((item) => item.id === clipId);
+      if (clip?.relativePath) {
+        const target = path.resolve(
+          store.assetsPath,
+          String(clip.relativePath)
+        );
+        const relation = path.relative(store.assetsPath, target);
+        if (!relation.startsWith("..") && !path.isAbsolute(relation)) {
+          fs.rmSync(target, { force: true });
+        }
+      }
+      pet.voiceLines.clips = clips.filter((item) => item.id !== clipId);
+    });
+    broadcastState();
+    return state;
   });
 
   ipcMain.handle("voice:stage-samples", async (_event, draftId) => {

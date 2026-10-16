@@ -78,6 +78,7 @@ contextBridge.exposeInMainWorld("deskPet", {
   updateState: (patch) => ipcRenderer.invoke("store:update", patch),
   updateStateSync: (patch) => ipcRenderer.sendSync("store:update-sync", patch),
   replaceState: (state) => ipcRenderer.invoke("store:replace", state),
+  applyPetPatch: (petId, patch) => ipcRenderer.invoke("pets:apply", petId, patch),
 
   getDisplayMetrics: () => ipcRenderer.invoke("display:get-metrics"),
   getDesktopIcons: () => ipcRenderer.invoke("desktop:get-icons"),
@@ -116,6 +117,9 @@ contextBridge.exposeInMainWorld("deskPet", {
   createPetFromSpine: (draftId, parts, name) =>
     ipcRenderer.invoke("spine:create-from-parts", draftId, parts, name),
   importVoiceSample: () => ipcRenderer.invoke("assets:import-voice-sample"),
+  importVoiceLines: (petId) => ipcRenderer.invoke("voice-lines:import", petId),
+  removeVoiceLine: (petId, clipId) =>
+    ipcRenderer.invoke("voice-lines:remove", petId, clipId),
   stageVoiceSamples: (draftId) =>
     ipcRenderer.invoke("voice:stage-samples", draftId),
   removeStagedVoiceSample: (relativePath) =>

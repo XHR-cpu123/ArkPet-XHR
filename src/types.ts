@@ -79,6 +79,57 @@ export type PetModulePlugins = {
   };
 };
 
+export type PetVitals = {
+  energy: number;
+  initiative: number;
+  relationship: number;
+  mood: string;
+  moodScore: number;
+  secondsToday: number;
+  secondsTotal: number;
+  todayKey: string;
+  lastSimulatedAt: string;
+  lastInteractionAt: string;
+  lastPetAt: string;
+  today: {
+    energyDelta: number;
+    initiativeDelta: number;
+    relationshipDelta: number;
+    interactions: number;
+    petCount: number;
+  };
+  recentEvents: WellbeingEvent[];
+};
+
+export type ModuleMetric = {
+  key: string;
+  label: string;
+  unit?: string;
+  min?: number;
+  max?: number;
+  tone?: "blue" | "orange" | "green";
+  decayPerMinute?: number;
+  warnBelow?: number;
+};
+
+export type PetModuleStateValue = number | string | boolean | null;
+
+export type PetVoiceClip = {
+  id: string;
+  name: string;
+  relativePath: string;
+  url: string;
+  size: number;
+  createdAt: string;
+};
+
+export type PetVoiceLines = {
+  enabled: boolean;
+  intervalSeconds: number;
+  probability: number;
+  clips: PetVoiceClip[];
+};
+
 export type PetProfile = {
   id: string;
   name: string;
@@ -102,6 +153,9 @@ export type PetProfile = {
   boneMap?: BoneRoleMap;
   actionBindings?: ActionBindings;
   modulePlugins?: PetModulePlugins;
+  vitals?: PetVitals;
+  moduleState?: Record<string, Record<string, PetModuleStateValue>>;
+  voiceLines?: PetVoiceLines;
   renderConfig?: PetRenderConfig;
   desktopRenderConfig?: PetRenderConfig;
   createdAt: string;
@@ -292,6 +346,7 @@ export type CustomDialogModule = {
   climbMaxWindows?: number;
   hungerDecayPerMinute?: number;
   foodSeekIntervalSeconds?: number;
+  metrics?: ModuleMetric[];
   version?: string;
   author?: string;
   entry?: string;
@@ -358,6 +413,7 @@ export type ActivityRecord = {
   type: string;
   text: string;
   createdAt: string;
+  petId?: string;
 };
 
 export type ChatMessage = {
@@ -508,6 +564,19 @@ export type DeskPetApi = {
     patch: Partial<AppState> | Record<string, unknown>
   ) => AppState;
   replaceState: (state: AppState) => Promise<AppState>;
+  applyPetPatch: (
+    petId: string,
+    patch: {
+      vitals?: Partial<PetVitals>;
+      moduleState?: Record<string, Record<string, PetModuleStateValue>>;
+    }
+  ) => Promise<AppState>;
+  importVoiceLines: (petId: string) => Promise<{
+    canceled: boolean;
+    clips?: PetVoiceClip[];
+    state?: AppState;
+  }>;
+  removeVoiceLine: (petId: string, clipId: string) => Promise<AppState>;
   getDisplayMetrics: () => Promise<DisplayMetrics>;
   getDesktopIcons: () => Promise<
     Array<{
